@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Expense Tracker</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: 'rgb(var(--color-primary) / <alpha-value>)', 
+              secondary: '#32d74b', 
+              danger: '#ff453a', 
+              dark: 'rgb(var(--bg-core) / <alpha-value>)', 
+              card: 'rgb(var(--bg-card) / <alpha-value>)', 
+              surface: 'rgb(var(--bg-surface) / <alpha-value>)',
+              main: 'rgb(var(--text-main) / <alpha-value>)',
+              muted: 'rgb(var(--text-muted) / <alpha-value>)',
+            },
+            fontFamily: {
+              sans: [
+                '"Hind Siliguri"', 
+                '-apple-system', 
+                'BlinkMacSystemFont', 
+                '"Segoe UI"', 
+                'Roboto', 
+                'Helvetica', 
+                'Arial', 
+                'sans-serif'
+              ],
+            },
+            boxShadow: {
+              'glow': '0 0 20px rgb(var(--color-primary) / 0.3)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --color-primary: 94 92 230;
+        /* Dark Mode Defaults */
+        --bg-core: 0 0 0;
+        --bg-card: 28 28 30;
+        --bg-surface: 44 44 46;
+        --text-main: 242 242 247;
+        --text-muted: 142 142 147;
+      }
+
+      body.light-mode {
+        /* Light Mode Overrides */
+        --bg-core: 242 242 247;
+        --bg-card: 255 255 255;
+        --bg-surface: 229 229 234;
+        --text-main: 0 0 0;
+        --text-muted: 99 99 102;
+      }
+      
+      body {
+        background-color: rgb(var(--bg-core));
+        color: rgb(var(--text-main));
+        font-feature-settings: "cv11", "ss01";
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(128, 128, 128, 0.2);
+        border-radius: 10px;
+      }
+
+      /* Theme Definitions */
+      body.theme-indigo { --color-primary: 94 92 230; }
+      body.theme-emerald { --color-primary: 16 185 129; }
+      body.theme-rose { --color-primary: 244 63 94; }
+      body.theme-amber { --color-primary: 245 158 11; }
+      body.theme-blue { --color-primary: 59 130 246; }
+
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .glass {
+        background: rgba(var(--bg-card), 0.75);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 0.5px solid rgba(128,128,128,0.1);
+      }
+      .glass-card {
+        background: rgba(var(--bg-surface), 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(128,128,128,0.1);
+      }
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+      .pt-safe {
+        padding-top: env(safe-area-inset-top, 20px);
+      }
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom, 20px);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./service-worker.js')
+            .then(reg => console.log('SW registered'))
+            .catch(err => console.log('SW failed', err));
+        });
+      }
+    </script>
+  </body>
+</html>
