@@ -1,6 +1,9 @@
 import { AppData, TransactionType, Category, CategoryItem } from '../types';
 
-const STORAGE_KEY = 'zenwallet_v4_data';
+const DB_NAME = 'ZenWalletDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'appData';
+const DATA_KEY = 'fullState';
 
 const DEFAULT_CATEGORIES: CategoryItem[] = [
     { id: 'cat_salary', name: Category.SALARY, type: TransactionType.INCOME, color: '#10b981', isSystem: true },
@@ -43,32 +46,90 @@ const DEFAULT_DATA: AppData = {
   }
 };
 
-export const getAppData = (): AppData => {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return DEFAULT_DATA;
-    
-    // Merge with default to ensure new fields exist for existing users
-    const parsed = JSON.parse(data);
-    return {
-      ...DEFAULT_DATA,
-      ...parsed,
-      wallets: parsed.wallets.map((w: any) => ({ ...w, type: w.type || 'STANDARD' })),
-      categories: parsed.categories && parsed.categories.length > 0 ? parsed.categories : DEFAULT_CATEGORIES,
-      debts: parsed.debts || [],
-      settings: { ...DEFAULT_DATA.settings, ...parsed.settings },
-      profile: { ...DEFAULT_DATA.profile, ...parsed.profile }
+// --- IndexedDB Wrapper ---
+
+const openDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
     };
-  } catch (e) {
-    console.error("Failed to load app data", e);
+  });
+};
+
+export const getAppData = async (): Promise<AppData> => {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(DATA_KEY);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        let result = request.result;
+        
+        // Fallback to LocalStorage for migration if IndexedDB is empty
+        if (!result) {
+            const lsData = localStorage.getItem('zenwallet_v4_data');
+            if (lsData) {
+                result = JSON.parse(lsData);
+                // Save to DB immediately to migrate
+                saveAppData(result);
+            }
+        }
+
+        if (!result) {
+            resolve(DEFAULT_DATA);
+            return;
+        }
+
+        // Merge logic
+        resolve({
+          ...DEFAULT_DATA,
+          ...result,
+          wallets: result.wallets.map((w: any) => ({ ...w, type: w.type || 'STANDARD' })),
+          categories: result.categories && result.categories.length > 0 ? result.categories : DEFAULT_CATEGORIES,
+          debts: result.debts || [],
+          settings: { ...DEFAULT_DATA.settings, ...result.settings },
+          profile: { ...DEFAULT_DATA.profile, ...result.profile }
+        });
+      };
+    });
+  } catch (error) {
+    console.error("DB Error:", error);
     return DEFAULT_DATA;
   }
 };
 
-export const saveAppData = (data: AppData): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-};
+export const saveAppData = async (data: AppData): Promise<void> => {
+  // We still update localStorage for the theme-loader in index.html, 
+  // but main data lives in IndexedDB
+  try {
+      localStorage.setItem('zenwallet_v4_data', JSON.stringify({
+          settings: data.settings, // Only save settings for quick boot
+          profile: data.profile 
+      }));
+  } catch (e) {}
 
-export const seedInitialData = (): AppData => {
-  return getAppData();
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(data, DATA_KEY);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  } catch (error) {
+    console.error("DB Save Error:", error);
+  }
 };
