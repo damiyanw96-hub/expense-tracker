@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Calendar as CalendarIcon, Loader2, ScanLine } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Calendar as CalendarIcon } from 'lucide-react';
 import { TransactionType, Category, AppData, Wallet, Transaction, CategoryItem } from '../types';
 
 interface AddModalProps {
@@ -31,9 +31,34 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
         }
     }, [isOpen]);
 
+    const calculateExpression = (expr: string): number | null => {
+        const sanitized = expr.replace(/[^0-9+\-*/.]/g, '');
+        if (!sanitized) return null;
+        try {
+            const parts = sanitized.split(/([+\-*/])/);
+            let total = parseFloat(parts[0]);
+            for (let i = 1; i < parts.length; i += 2) {
+                const operator = parts[i];
+                const nextVal = parseFloat(parts[i+1]);
+                if (isNaN(nextVal)) continue;
+                if (operator === '+') total += nextVal;
+                else if (operator === '-') total -= nextVal;
+                else if (operator === '*') total *= nextVal;
+                else if (operator === '/') total /= nextVal;
+            }
+            return (isFinite(total) && !isNaN(total)) ? total : null;
+        } catch (e) {
+            return null;
+        }
+    };
+
     const handleSave = () => {
         if (!amount) return;
-        const numAmount = parseFloat(amount);
+        
+        const calculated = calculateExpression(amount);
+        if (calculated === null || calculated <= 0) return;
+
+        const numAmount = parseFloat(calculated.toFixed(2));
         
         if (type === TransactionType.TRANSFER) {
             if (!toWalletId || toWalletId === data.currentWalletId) {
@@ -56,36 +81,16 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
     };
 
     const handleAmountBlur = () => {
-        // SAFE CALCULATOR LOGIC
-        // Only allow digits and operators. Prevents code injection.
-        const sanitized = amount.replace(/[^0-9+\-*/.]/g, ''); 
-        
-        // If the user typed text that got stripped entirely, or invalid format
-        if (!sanitized) return;
+        const calculated = calculateExpression(amount);
+        if (calculated !== null) {
+            setAmount(parseFloat(calculated.toFixed(2)).toString());
+        }
+    };
 
-        // Simple manual parser to avoid 'eval' or 'new Function'
-        // Supports basic chains like 50+20-10. Does not support parens/order of operations complex logic for simplicity and security.
-        try {
-            // Split by operators, keeping delimeters
-            const parts = sanitized.split(/([+\-*/])/);
-            let total = parseFloat(parts[0]);
-            
-            for (let i = 1; i < parts.length; i += 2) {
-                const operator = parts[i];
-                const nextVal = parseFloat(parts[i+1]);
-                if (isNaN(nextVal)) continue;
-
-                if (operator === '+') total += nextVal;
-                else if (operator === '-') total -= nextVal;
-                else if (operator === '*') total *= nextVal;
-                else if (operator === '/') total /= nextVal;
-            }
-
-            if (isFinite(total) && !isNaN(total)) {
-                setAmount(parseFloat(total.toFixed(2)).toString());
-            }
-        } catch (e) {
-            // If parse fails, keep original input
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSave();
         }
     };
 
@@ -117,6 +122,7 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                             value={amount} 
                             onChange={e => setAmount(e.target.value)} 
                             onBlur={handleAmountBlur}
+                            onKeyDown={handleKeyDown}
                             placeholder="0.00" 
                             className="w-full bg-surface text-main text-2xl font-bold p-4 pl-12 rounded-2xl outline-none border border-white/5 focus:border-primary transition-colors"
                             autoFocus
@@ -166,7 +172,8 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                         type="text" 
                         placeholder="Add a note... (#tags allowed)" 
                         value={note} 
-                        onChange={e => setNote(e.target.value)} 
+                        onChange={e => setNote(e.target.value)}
+                        onKeyDown={handleKeyDown}
                         className="w-full bg-surface text-main p-4 rounded-xl outline-none border border-white/5 focus:border-primary transition-colors text-sm"
                     />
 

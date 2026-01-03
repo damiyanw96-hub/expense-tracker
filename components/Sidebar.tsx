@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, User, Settings, TrendingUp, HandCoins, X, GripVertical, Moon, Sun, Globe, Download, Upload, Trash2, Check, Plus } from 'lucide-react';
+import { ArrowLeft, User, Settings, TrendingUp, HandCoins, X, GripVertical, Moon, Sun, Download, Upload, Trash2, Check, Plus, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { AppData, TransactionType, CategoryItem } from '../types';
 
 interface SidebarProps {
@@ -10,6 +10,50 @@ interface SidebarProps {
     onViewChange: (v: any) => void;
 }
 
+const COLOR_PRESETS = [
+    '#5e5ce6', // Indigo
+    '#32d74b', // Green
+    '#ff453a', // Red
+    '#ff9f0a', // Orange
+    '#0a84ff', // Blue
+    '#bf5af2', // Purple
+    '#ff375f', // Pink
+    '#64d2ff', // Cyan
+    '#ac8e68', // Brown
+    '#98989d', // Gray
+];
+
+const CURRENCIES = [
+    { value: 'BDT', label: 'Bangladeshi Taka', symbol: '৳' },
+    { value: 'USD', label: 'US Dollar', symbol: '$' },
+    { value: 'EUR', label: 'Euro', symbol: '€' },
+    { value: 'GBP', label: 'British Pound', symbol: '£' },
+    { value: 'INR', label: 'Indian Rupee', symbol: '₹' },
+    { value: 'JPY', label: 'Japanese Yen', symbol: '¥' },
+];
+
+const CustomConfirmModal = ({ isOpen, onClose, onConfirm, title, message, isDanger }: any) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity" onClick={onClose} />
+            <div className="relative bg-card w-full max-w-xs rounded-3xl p-6 border border-white/10 shadow-2xl animate-in zoom-in-95">
+                <div className="flex flex-col items-center text-center">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 border ${isDanger ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                        <AlertTriangle size={24} />
+                    </div>
+                    <h3 className="text-xl font-bold text-main mb-2">{title}</h3>
+                    <p className="text-sm text-muted mb-6">{message}</p>
+                    <div className="flex gap-3 w-full">
+                        <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-surface text-muted font-bold text-sm hover:bg-black/10 transition-colors">Cancel</button>
+                        <button onClick={onConfirm} className={`flex-1 py-3 rounded-xl text-white font-bold text-sm transition-colors ${isDanger ? 'bg-rose-500 hover:bg-rose-600' : 'bg-primary hover:bg-primary/90'}`}>Confirm</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateData, onViewChange }) => {
     const [sidebarView, setSidebarView] = useState<'menu' | 'account' | 'settings' | 'budgets' | 'categories'>('menu');
     const [localProfile, setLocalProfile] = useState(data.profile);
@@ -18,11 +62,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
     // Category State
     const [newCatName, setNewCatName] = useState('');
     const [newCatType, setNewCatType] = useState<TransactionType>(TransactionType.EXPENSE);
-    const [newCatColor, setNewCatColor] = useState('#5e5ce6');
+    const [newCatColor, setNewCatColor] = useState(COLOR_PRESETS[0]);
     
     // Budget State
     const [budgetCat, setBudgetCat] = useState('');
     const [budgetLimit, setBudgetLimit] = useState('');
+    
+    // UI State for Inline Dropdowns
+    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,6 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
             setLocalProfile(data.profile);
             setLocalSettings(data.settings);
             setSidebarView('menu');
+            setOpenDropdown(null);
         }
     }, [isOpen, data]);
 
@@ -51,6 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
         };
         updateData({ categories: [...data.categories, newCat] });
         setNewCatName('');
+        setNewCatColor(COLOR_PRESETS[Math.floor(Math.random() * COLOR_PRESETS.length)]);
     };
 
     const handleDeleteCategory = (id: string) => {
@@ -68,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
 
     const activeBudgets = (Object.entries(localSettings.budgetLimits) as [string, number][])
         .filter(([_, limit]) => limit > 0)
-        .sort((a, b) => b[1] - a[1]); // Sort by highest limit
+        .sort((a, b) => b[1] - a[1]);
 
     const availableForBudget = expenseCategories.filter(cat => !localSettings.budgetLimits[cat] || localSettings.budgetLimits[cat] === 0);
 
@@ -81,7 +131,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                 budgetLimits: { ...localSettings.budgetLimits, [budgetCat]: limit }
             });
             setBudgetLimit('');
-            setBudgetCat(''); // Reset selection
+            setBudgetCat('');
+            setOpenDropdown(null);
         }
     };
 
@@ -91,7 +142,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
         setLocalSettings({ ...localSettings, budgetLimits: newLimits });
     };
 
-    // Auto-select first available category when view opens or options change
     useEffect(() => {
         if (sidebarView === 'budgets' && !budgetCat && availableForBudget.length > 0) {
             setBudgetCat(availableForBudget[0]);
@@ -130,39 +180,44 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 no-scrollbar">
-                    <button onClick={() => setSidebarView('account')} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors">
+                    <button onClick={() => setSidebarView('account')} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors group">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-full bg-primary/10 text-primary"><User size={18}/></div>
+                            <div className="p-2 rounded-full bg-primary/10 text-primary group-hover:scale-110 transition-transform"><User size={18}/></div>
                             <span className="text-sm font-semibold text-main">My Account</span>
                         </div>
+                        <ChevronRight size={16} className="text-muted/50" />
                     </button>
 
-                    <button onClick={() => setSidebarView('settings')} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors">
+                    <button onClick={() => setSidebarView('settings')} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors group">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-full bg-blue-500/10 text-blue-400"><Settings size={18}/></div>
+                            <div className="p-2 rounded-full bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform"><Settings size={18}/></div>
                             <span className="text-sm font-semibold text-main">Settings</span>
                         </div>
+                        <ChevronRight size={16} className="text-muted/50" />
                     </button>
 
-                     <button onClick={() => setSidebarView('budgets')} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors">
+                     <button onClick={() => setSidebarView('budgets')} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors group">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-full bg-emerald-500/10 text-emerald-400"><TrendingUp size={18}/></div>
+                            <div className="p-2 rounded-full bg-emerald-500/10 text-emerald-400 group-hover:scale-110 transition-transform"><TrendingUp size={18}/></div>
                             <span className="text-sm font-semibold text-main">Manage Budgets</span>
                         </div>
+                        <ChevronRight size={16} className="text-muted/50" />
                     </button>
 
-                    <button onClick={() => setSidebarView('categories')} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors">
+                    <button onClick={() => setSidebarView('categories')} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors group">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-full bg-orange-500/10 text-orange-400"><GripVertical size={18}/></div>
+                            <div className="p-2 rounded-full bg-orange-500/10 text-orange-400 group-hover:scale-110 transition-transform"><GripVertical size={18}/></div>
                             <span className="text-sm font-semibold text-main">Categories</span>
                         </div>
+                        <ChevronRight size={16} className="text-muted/50" />
                     </button>
 
-                    <button onClick={() => { onViewChange('debts'); onClose(); }} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors">
+                    <button onClick={() => { onViewChange('debts'); onClose(); }} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors group">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-full bg-rose-500/10 text-rose-400"><HandCoins size={18}/></div>
+                            <div className="p-2 rounded-full bg-rose-500/10 text-rose-400 group-hover:scale-110 transition-transform"><HandCoins size={18}/></div>
                             <span className="text-sm font-semibold text-main">Debt Tracker</span>
                         </div>
+                        <ChevronRight size={16} className="text-muted/50" />
                     </button>
                 </div>
                 
@@ -180,26 +235,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
                      <div className="bg-surface p-4 rounded-2xl border border-white/5 space-y-3">
                          <h3 className="text-xs font-bold text-muted uppercase">Add New</h3>
-                         <div className="flex gap-2">
-                             <input type="text" placeholder="Name" value={newCatName} onChange={e => setNewCatName(e.target.value)} className="flex-1 bg-black/20 rounded-lg px-3 py-2 text-sm text-main outline-none" />
-                             <input type="color" value={newCatColor} onChange={e => setNewCatColor(e.target.value)} className="w-10 h-10 rounded-lg bg-transparent cursor-pointer" />
+                         <div className="flex flex-col gap-3">
+                             <input type="text" placeholder="Name" value={newCatName} onChange={e => setNewCatName(e.target.value)} className="w-full bg-black/20 rounded-lg px-3 py-3 text-sm text-main outline-none border border-white/5 focus:border-primary/50" />
+                             
+                             {/* Color Swatches */}
+                             <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                {COLOR_PRESETS.map(c => (
+                                    <button 
+                                        key={c} 
+                                        onClick={() => setNewCatColor(c)}
+                                        className={`w-8 h-8 rounded-full shrink-0 border-2 transition-all ${newCatColor === c ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
+                                        style={{ backgroundColor: c }}
+                                    />
+                                ))}
+                             </div>
                          </div>
-                         <div className="flex gap-2">
-                            <button onClick={() => setNewCatType(TransactionType.EXPENSE)} className={`flex-1 py-2 text-[10px] font-bold rounded-lg ${newCatType === TransactionType.EXPENSE ? 'bg-rose-500 text-white' : 'bg-black/20 text-muted'}`}>EXPENSE</button>
-                            <button onClick={() => setNewCatType(TransactionType.INCOME)} className={`flex-1 py-2 text-[10px] font-bold rounded-lg ${newCatType === TransactionType.INCOME ? 'bg-emerald-500 text-white' : 'bg-black/20 text-muted'}`}>INCOME</button>
+                         <div className="flex gap-2 pt-1">
+                            <button onClick={() => setNewCatType(TransactionType.EXPENSE)} className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-colors ${newCatType === TransactionType.EXPENSE ? 'bg-rose-500 text-white shadow-lg' : 'bg-black/20 text-muted'}`}>EXPENSE</button>
+                            <button onClick={() => setNewCatType(TransactionType.INCOME)} className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-colors ${newCatType === TransactionType.INCOME ? 'bg-emerald-500 text-white shadow-lg' : 'bg-black/20 text-muted'}`}>INCOME</button>
                          </div>
-                         <button onClick={handleAddCategory} className="w-full py-2 bg-primary text-white rounded-lg text-xs font-bold">Add Category</button>
+                         <button onClick={handleAddCategory} className="w-full py-3 bg-primary text-white rounded-xl text-xs font-bold mt-1 shadow-lg shadow-primary/20">Add Category</button>
                      </div>
 
-                     <div className="space-y-2">
+                     <div className="space-y-2 pb-4">
                          {data.categories.map((cat: CategoryItem) => (
                              <div key={cat.id} className="flex items-center justify-between p-3 bg-surface rounded-xl border border-white/5">
                                  <div className="flex items-center gap-3">
-                                     <div className="w-4 h-4 rounded-full" style={{ backgroundColor: cat.color }} />
+                                     <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: cat.color }} />
                                      <span className="text-sm font-medium text-main">{cat.name}</span>
                                  </div>
                                  {!cat.isSystem && (
-                                     <button onClick={() => handleDeleteCategory(cat.id)} className="text-muted hover:text-rose-500"><Trash2 size={14}/></button>
+                                     <button onClick={() => handleDeleteCategory(cat.id)} className="text-muted hover:text-rose-500 p-2"><Trash2 size={16}/></button>
                                  )}
                              </div>
                          ))}
@@ -271,20 +337,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                          <div className="bg-surface p-4 rounded-2xl border border-white/5 space-y-3">
                              <h3 className="text-xs font-bold text-muted uppercase">Set New Limit</h3>
                              <div className="space-y-3">
+                                 {/* Inline Dropdown for Category */}
                                  <div className="relative">
-                                    <select 
-                                        value={budgetCat} 
-                                        onChange={e => setBudgetCat(e.target.value)}
-                                        className="w-full bg-black/20 text-main text-sm rounded-xl px-3 py-3 border border-white/10 appearance-none outline-none focus:border-primary"
+                                    <button 
+                                        onClick={() => setOpenDropdown(openDropdown === 'budget' ? null : 'budget')}
+                                        className="w-full bg-black/20 text-main text-sm rounded-xl px-3 py-3 border border-white/10 flex items-center justify-between hover:bg-black/30 transition-colors"
                                     >
-                                        <option value="" disabled>Select Category</option>
-                                        {availableForBudget.map(c => (
-                                            <option key={c} value={c}>{c}</option>
-                                        ))}
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
-                                        <GripVertical size={14} />
-                                    </div>
+                                        <span className={budgetCat ? "text-main" : "text-muted"}>{budgetCat || "Select Category"}</span>
+                                        <ChevronDown size={16} className={`text-muted transition-transform duration-200 ${openDropdown === 'budget' ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    
+                                    {openDropdown === 'budget' && (
+                                        <div className="mt-2 bg-black/30 rounded-xl border border-white/10 overflow-hidden animate-in slide-in-from-top-2 fade-in duration-200">
+                                            <div className="max-h-48 overflow-y-auto no-scrollbar">
+                                                {availableForBudget.map(c => (
+                                                    <button 
+                                                        key={c}
+                                                        onClick={() => { setBudgetCat(c); setOpenDropdown(null); }}
+                                                        className="w-full text-left px-4 py-3 text-sm text-main hover:bg-white/5 border-b border-white/5 last:border-0"
+                                                    >
+                                                        {c}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                  </div>
 
                                  <div className="flex items-center gap-2">
@@ -301,7 +378,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                                  <button 
                                     onClick={handleAddBudget}
                                     disabled={!budgetCat || !budgetLimit}
-                                    className="w-full py-3 bg-primary text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                                    className="w-full py-3 bg-primary text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-primary/20"
                                  >
                                      <Plus size={16} /> Set Limit
                                  </button>
@@ -336,23 +413,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                         </div>
                     </div>
                     
-                    {/* Currency */}
+                    {/* Currency Inline Dropdown */}
                     <div className="bg-surface p-4 rounded-2xl border border-white/5">
                          <label className="text-[10px] uppercase font-bold text-muted block mb-3">Currency</label>
                          <div className="relative">
-                            <select 
-                                value={localSettings.currencySymbol || 'BDT'}
-                                onChange={(e) => setLocalSettings({ ...localSettings, currencySymbol: e.target.value })}
-                                className="w-full bg-black/20 text-main text-sm rounded-xl px-4 py-3 border border-white/10 appearance-none outline-none focus:border-primary"
+                            <button 
+                                onClick={() => setOpenDropdown(openDropdown === 'currency' ? null : 'currency')}
+                                className="w-full bg-black/20 text-main text-sm rounded-xl px-4 py-3 border border-white/10 flex items-center justify-between hover:bg-black/30 transition-colors"
                             >
-                                <option value="BDT">BDT (৳)</option>
-                                <option value="USD">USD ($)</option>
-                                <option value="EUR">EUR (€)</option>
-                                <option value="GBP">GBP (£)</option>
-                                <option value="INR">INR (₹)</option>
-                                <option value="JPY">JPY (¥)</option>
-                            </select>
-                            <Globe size={16} className="absolute right-4 top-3.5 text-muted pointer-events-none"/>
+                                <span className="flex items-center gap-2">
+                                    <span className="font-bold text-primary">{CURRENCIES.find(c => c.value === localSettings.currencySymbol)?.symbol}</span>
+                                    <span>{CURRENCIES.find(c => c.value === localSettings.currencySymbol)?.label}</span>
+                                </span>
+                                <ChevronDown size={16} className={`text-muted transition-transform duration-200 ${openDropdown === 'currency' ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {openDropdown === 'currency' && (
+                                <div className="mt-2 bg-black/30 rounded-xl border border-white/10 overflow-hidden animate-in slide-in-from-top-2 fade-in duration-200">
+                                    {CURRENCIES.map(c => (
+                                        <button 
+                                            key={c.value}
+                                            onClick={() => { setLocalSettings({ ...localSettings, currencySymbol: c.value }); setOpenDropdown(null); }}
+                                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 border-b border-white/5 last:border-0"
+                                        >
+                                            <span className="flex items-center gap-3">
+                                                <span className="font-bold text-primary w-6 text-center">{c.symbol}</span>
+                                                <span className="text-sm text-main">{c.label}</span>
+                                            </span>
+                                            {localSettings.currencySymbol === c.value && <Check size={16} className="text-primary"/>}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                          </div>
                     </div>
 
@@ -383,7 +475,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                                 }} />
                             </div>
                         </div>
-                        <button onClick={() => { if(confirm("Reset?")) { localStorage.clear(); window.location.reload(); } }} className="w-full flex items-center justify-center gap-2 p-3 text-rose-500 bg-rose-500/10 rounded-xl text-xs font-bold uppercase border border-rose-500/20"><Trash2 size={14} /> Reset Data</button>
+                        <button onClick={() => setShowResetConfirm(true)} className="w-full flex items-center justify-center gap-2 p-3 text-rose-500 bg-rose-500/10 rounded-xl text-xs font-bold uppercase border border-rose-500/20"><Trash2 size={14} /> Reset Data</button>
                     </div>
                 </div>
                 <div className="p-4 border-t border-white/5 bg-dark flex gap-3">
@@ -392,6 +484,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                 </div>
              </>
            )}
+
+           <CustomConfirmModal 
+                isOpen={showResetConfirm}
+                onClose={() => setShowResetConfirm(false)}
+                onConfirm={() => { localStorage.clear(); window.location.reload(); }}
+                title="Reset All Data?"
+                message="This will delete all wallets, transactions, and settings. This cannot be undone."
+                isDanger={true}
+           />
         </div>
       </>
     );

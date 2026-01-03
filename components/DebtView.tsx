@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, Check, Trash2 } from 'lucide-react';
+import { PlusCircle, Check, Trash2, AlertTriangle } from 'lucide-react';
 import { Debt, AppData } from '../types';
 
 interface DebtProps {
@@ -8,12 +8,35 @@ interface DebtProps {
     formatMoney: (val: number, sym: string) => string;
 }
 
+const ConfirmModal = ({ isOpen, onClose, onConfirm, message }: any) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[6000] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity" onClick={onClose} />
+            <div className="relative bg-card w-full max-w-xs rounded-3xl p-6 border border-white/10 shadow-2xl animate-in zoom-in-95">
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 mb-4 border border-rose-500/20">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <h3 className="text-xl font-bold text-main mb-2">Are you sure?</h3>
+                    <p className="text-sm text-muted mb-6">{message}</p>
+                    <div className="flex gap-3 w-full">
+                        <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-surface text-muted font-bold text-sm hover:bg-black/10 transition-colors">Cancel</button>
+                        <button onClick={onConfirm} className="flex-1 py-3 rounded-xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 transition-colors">Confirm</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const DebtView: React.FC<DebtProps> = ({ data, updateData, formatMoney }) => {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [person, setPerson] = useState('');
     const [amount, setAmount] = useState('');
     const [type, setType] = useState<'I_OWE' | 'OWES_ME'>('OWES_ME');
     const [note, setNote] = useState('');
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
     const handleAddDebt = (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,9 +59,10 @@ export const DebtView: React.FC<DebtProps> = ({ data, updateData, formatMoney })
         updateData({ debts: updated });
     };
 
-    const deleteDebt = (id: string) => {
-        if(confirm("Delete this debt record?")) {
-            updateData({ debts: data.debts.filter((d: Debt) => d.id !== id) });
+    const confirmDelete = () => {
+        if (deleteId) {
+            updateData({ debts: data.debts.filter((d: Debt) => d.id !== deleteId) });
+            setDeleteId(null);
         }
     };
 
@@ -78,7 +102,7 @@ export const DebtView: React.FC<DebtProps> = ({ data, updateData, formatMoney })
                              <span className="text-lg font-bold text-main">{formatMoney(d.amount, data.settings.currencySymbol)}</span>
                              <div className="flex gap-2">
                                  <button onClick={() => toggleSettle(d.id)} className="p-1.5 bg-surface rounded-full text-emerald-400 hover:bg-emerald-500/20"><Check size={16}/></button>
-                                 <button onClick={() => deleteDebt(d.id)} className="p-1.5 bg-surface rounded-full text-rose-400 hover:bg-rose-500/20"><Trash2 size={16}/></button>
+                                 <button onClick={() => setDeleteId(d.id)} className="p-1.5 bg-surface rounded-full text-rose-400 hover:bg-rose-500/20"><Trash2 size={16}/></button>
                              </div>
                         </div>
                     </div>
@@ -103,6 +127,13 @@ export const DebtView: React.FC<DebtProps> = ({ data, updateData, formatMoney })
                     </div>
                  </div>
             )}
+            
+            <ConfirmModal 
+                isOpen={!!deleteId} 
+                onClose={() => setDeleteId(null)} 
+                onConfirm={confirmDelete}
+                message="Delete this debt record?" 
+            />
         </div>
     );
 };

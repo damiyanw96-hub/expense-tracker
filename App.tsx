@@ -9,7 +9,7 @@ import { AddTransactionModal } from './components/AddTransactionModal';
 import { Sidebar } from './components/Sidebar';
 import { 
   Trash2, Coffee, Car, 
-  Wallet as WalletIcon, ChevronDown, 
+  ChevronDown, 
   Utensils, Cookie, CreditCard, Banknote, X, PlusCircle, Check,
   Menu, ShoppingBag, Zap, Music, Bike, MoreHorizontal, Activity, Landmark,
   Briefcase, GraduationCap, ArrowRightLeft, Loader2
