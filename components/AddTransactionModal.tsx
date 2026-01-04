@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar as CalendarIcon } from 'lucide-react';
-import { TransactionType, Category, AppData, Wallet, Transaction, CategoryItem } from '../types';
+import { X, Calendar as CalendarIcon, Info, ArrowRight, Wallet as WalletIcon } from 'lucide-react';
+import { TransactionType, Category, AppData, Wallet, Transaction, CategoryItem, Debt } from '../types';
 
 interface AddModalProps {
     isOpen: boolean;
@@ -8,45 +8,41 @@ interface AddModalProps {
     data: AppData;
     onAdd: (t: Transaction) => void;
     onTransfer: (amount: number, from: string, to: string, note: string, date: string) => void;
+    onAddDebt?: (debt: Debt) => void;
     getDateTime: (d: string) => string;
     CategoryIcon: React.ComponentType<{ category: string, color?: string }>;
+    initialData?: { type: TransactionType, category?: string, amount?: number, note?: string };
 }
 
-export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, data, onAdd, onTransfer, getDateTime, CategoryIcon }) => {
-    const [type, setType] = useState<TransactionType>(TransactionType.EXPENSE);
+export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, data, onAdd, onTransfer, onAddDebt, getDateTime, CategoryIcon, initialData }) => {
+    const [type, setType] = useState<TransactionType>(initialData?.type || TransactionType.EXPENSE);
     const [amount, setAmount] = useState('');
     const [note, setNote] = useState('');
     const [category, setCategory] = useState<string>(Category.OTHER);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [toWalletId, setToWalletId] = useState('');
+    const [lenderName, setLenderName] = useState('');
 
     useEffect(() => {
         if (isOpen) {
-            setAmount('');
-            setNote('');
-            setCategory(Category.OTHER);
+            setType(initialData?.type || TransactionType.EXPENSE);
+            setAmount(initialData?.amount ? initialData.amount.toString() : '');
+            setNote(initialData?.note || '');
+            setCategory(initialData?.category || Category.OTHER);
             setDate(new Date().toISOString().split('T')[0]);
-            setType(TransactionType.EXPENSE);
             setToWalletId('');
+            setLenderName('');
         }
-    }, [isOpen]);
+    }, [isOpen, initialData]);
 
     const calculateExpression = (expr: string): number | null => {
         const sanitized = expr.replace(/[^0-9+\-*/.]/g, '');
         if (!sanitized) return null;
         try {
-            const parts = sanitized.split(/([+\-*/])/);
-            let total = parseFloat(parts[0]);
-            for (let i = 1; i < parts.length; i += 2) {
-                const operator = parts[i];
-                const nextVal = parseFloat(parts[i+1]);
-                if (isNaN(nextVal)) continue;
-                if (operator === '+') total += nextVal;
-                else if (operator === '-') total -= nextVal;
-                else if (operator === '*') total *= nextVal;
-                else if (operator === '/') total /= nextVal;
-            }
-            return (isFinite(total) && !isNaN(total)) ? total : null;
+            // eslint-disable-next-line no-eval
+            const result = eval(sanitized); 
+            // Simple eval for basic math (user input safety handled by regex above)
+            return (isFinite(result) && !isNaN(result)) ? result : null;
         } catch (e) {
             return null;
         }
@@ -73,116 +69,158 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                 type,
                 category,
                 date: getDateTime(date),
-                note,
+                note: lenderName ? `${note ? note + ' ' : ''}(Lender: ${lenderName})` : note,
                 walletId: data.currentWalletId
             };
+            
+            if (type === TransactionType.INCOME && category === Category.LOAN && lenderName && onAddDebt) {
+                const newDebt: Debt = {
+                    id: Date.now().toString(),
+                    person: lenderName,
+                    amount: numAmount,
+                    type: 'I_OWE',
+                    note: `Added via Income (Loan): ${note}`,
+                    isSettled: false,
+                    dueDate: undefined 
+                };
+                onAddDebt(newDebt);
+            }
+
             onAdd(newTx);
-        }
-    };
-
-    const handleAmountBlur = () => {
-        const calculated = calculateExpression(amount);
-        if (calculated !== null) {
-            setAmount(parseFloat(calculated.toFixed(2)).toString());
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleSave();
         }
     };
 
     if (!isOpen) return null;
 
     const availableCategories = data.categories.filter((c: CategoryItem) => c.type === type);
+    const otherWallets = data.wallets.filter((w: Wallet) => w.id !== data.currentWalletId);
 
     return (
-        <div className="fixed inset-0 z-[5000] flex items-end sm:items-center justify-center">
+        <div className="fixed inset-0 z-[5000] flex items-end justify-center">
+            {/* Backdrop */}
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose} />
-            <div className="relative z-50 bg-card w-full max-w-md p-6 rounded-t-3xl sm:rounded-3xl border border-white/10 shadow-2xl animate-in slide-in-from-bottom-10 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                     <h2 className="text-xl font-bold text-main">New Transaction</h2>
-                     <button onClick={onClose} className="p-2 bg-surface rounded-full text-muted hover:text-main"><X size={20}/></button>
+            
+            {/* Modal Content - Designed for keyboard safety */}
+            <div className="relative z-50 bg-card w-full max-w-md rounded-t-3xl border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom-full duration-300 pb-safe">
+                
+                {/* 1. Header & Tabs */}
+                <div className="flex items-center justify-between p-4 pb-2">
+                     <div className="flex bg-surface rounded-full p-1 border border-white/5">
+                        {[TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER].map(t => (
+                            <button 
+                                key={t} 
+                                onClick={() => setType(t)}
+                                className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all ${type === t ? (t === TransactionType.EXPENSE ? 'bg-rose-500 text-white' : t === TransactionType.INCOME ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white') : 'text-muted hover:text-main'}`}
+                            >
+                                {t}
+                            </button>
+                        ))}
+                     </div>
+                     <button onClick={onClose} className="p-2 bg-surface rounded-full text-muted active:scale-90"><X size={20}/></button>
                 </div>
 
-                <div className="flex bg-surface p-1 rounded-xl mb-6">
-                    <button onClick={() => setType(TransactionType.EXPENSE)} className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${type === TransactionType.EXPENSE ? 'bg-rose-500 text-white shadow-lg' : 'text-muted hover:text-main'}`}>Expense</button>
-                    <button onClick={() => setType(TransactionType.INCOME)} className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${type === TransactionType.INCOME ? 'bg-emerald-500 text-white shadow-lg' : 'text-muted hover:text-main'}`}>Income</button>
-                    <button onClick={() => setType(TransactionType.TRANSFER)} className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${type === TransactionType.TRANSFER ? 'bg-blue-500 text-white shadow-lg' : 'text-muted hover:text-main'}`}>Transfer</button>
-                </div>
-
-                <div className="space-y-4">
-                    <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">{data.settings.currencySymbol}</span>
+                {/* 2. Main Amount Input - The Hero */}
+                <div className="px-6 py-2">
+                    <div className="flex items-center justify-center relative">
+                        <span className="text-2xl font-bold text-muted absolute left-0 top-1/2 -translate-y-1/2">{data.settings.currencySymbol}</span>
                         <input 
                             type="text" 
-                            inputMode="decimal"
+                            inputMode="decimal" // Better keyboard on iOS/Android
                             value={amount} 
                             onChange={e => setAmount(e.target.value)} 
-                            onBlur={handleAmountBlur}
-                            onKeyDown={handleKeyDown}
-                            placeholder="0.00" 
-                            className="w-full bg-surface text-main text-2xl font-bold p-4 pl-12 rounded-2xl outline-none border border-white/5 focus:border-primary transition-colors"
+                            onKeyDown={e => e.key === 'Enter' && handleSave()}
+                            placeholder="0" 
+                            className="w-full bg-transparent text-center text-5xl font-bold text-main placeholder:text-muted/20 outline-none py-4"
                             autoFocus
                         />
                     </div>
+                </div>
 
+                {/* 3. Compact Details Row */}
+                <div className="px-4 space-y-4">
+                    
+                    {/* Note & Date Combined */}
+                    <div className="flex gap-2">
+                        <div className="flex-1 bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 border border-white/5 focus-within:border-primary/50 transition-colors">
+                            <input 
+                                type="text" 
+                                placeholder="Add a note..." 
+                                value={note} 
+                                onChange={e => setNote(e.target.value)}
+                                className="bg-transparent w-full text-sm text-main placeholder:text-muted outline-none"
+                            />
+                        </div>
+                         <div className="bg-surface rounded-2xl px-3 py-3 flex items-center gap-2 border border-white/5 min-w-[110px]">
+                             <CalendarIcon size={16} className="text-muted" />
+                             <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent text-xs font-bold text-main w-full outline-none" />
+                        </div>
+                    </div>
+
+                    {/* Transfer specific or Category Scroll */}
                     {type === TransactionType.TRANSFER ? (
-                         <div className="space-y-2">
-                             <label className="text-xs font-bold text-muted uppercase ml-1">To Wallet</label>
-                             <div className="grid grid-cols-2 gap-2">
-                                 {data.wallets.filter((w: Wallet) => w.id !== data.currentWalletId).map((w: Wallet) => (
-                                     <button 
-                                        key={w.id} 
-                                        onClick={() => setToWalletId(w.id)}
-                                        className={`p-3 rounded-xl border text-left transition-all ${toWalletId === w.id ? 'bg-primary/20 border-primary text-primary' : 'bg-surface border-white/5 text-muted hover:border-white/20'}`}
-                                     >
-                                         <span className="text-sm font-bold block truncate">{w.name}</span>
-                                     </button>
-                                 ))}
-                             </div>
+                         <div className="bg-surface rounded-2xl p-4 border border-white/5">
+                             <label className="text-[10px] font-bold text-muted uppercase block mb-2">Transfer To</label>
+                             
+                             {otherWallets.length === 0 ? (
+                                <div className="text-center py-4 px-4 rounded-xl bg-black/20 text-muted border border-dashed border-white/10">
+                                    <div className="flex justify-center mb-2 opacity-50"><WalletIcon size={24} /></div>
+                                    <p className="text-xs font-semibold">No other wallets found.</p>
+                                    <p className="text-[10px] mt-1 opacity-70">Create another wallet in the side menu to transfer funds.</p>
+                                </div>
+                             ) : (
+                                 <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                     {otherWallets.map((w: Wallet) => (
+                                         <button 
+                                            key={w.id} 
+                                            type="button"
+                                            onClick={() => setToWalletId(w.id)}
+                                            className={`flex-shrink-0 px-4 py-2 rounded-xl border text-xs font-bold transition-all ${toWalletId === w.id ? 'bg-primary/20 border-primary text-primary' : 'bg-black/20 border-white/5 text-muted'}`}
+                                         >
+                                             {w.name}
+                                         </button>
+                                     ))}
+                                 </div>
+                             )}
                          </div>
                     ) : (
-                        <div className="grid grid-cols-4 gap-2 max-h-[160px] overflow-y-auto no-scrollbar">
-                            {availableCategories.map(cat => (
-                                <button 
-                                    key={cat.id} 
-                                    onClick={() => setCategory(cat.name)}
-                                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${category === cat.name ? 'bg-primary/20 border-primary' : 'bg-surface border-transparent hover:bg-surface/80'}`}
-                                >
-                                    <div className={`${category === cat.name ? 'scale-110' : 'scale-100'} transition-transform`}>
-                                        <CategoryIcon category={cat.name} color={cat.color} />
-                                    </div>
-                                    <span className={`text-[9px] mt-1 font-medium truncate w-full text-center ${category === cat.name ? 'text-primary' : 'text-muted'}`}>{cat.name}</span>
-                                </button>
-                            ))}
+                        <div className="relative w-full">
+                            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 px-1 snap-x">
+                                {availableCategories.map(cat => (
+                                    <button 
+                                        key={cat.id} 
+                                        onClick={() => setCategory(cat.name)}
+                                        className={`flex-shrink-0 snap-start flex flex-col items-center gap-1 min-w-[60px] transition-opacity ${category === cat.name ? 'opacity-100' : 'opacity-50 hover:opacity-80'}`}
+                                    >
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${category === cat.name ? 'bg-primary/10 border-primary shadow-[0_0_15px_rgba(var(--color-primary),0.3)]' : 'bg-surface border-white/5'}`}>
+                                            <CategoryIcon category={cat.name} color={category === cat.name ? cat.color : undefined} />
+                                        </div>
+                                        <span className={`text-[9px] font-medium truncate max-w-[64px] ${category === cat.name ? 'text-primary' : 'text-muted'}`}>{cat.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            {/* Loan Source Input */}
+                            {type === TransactionType.INCOME && category === Category.LOAN && (
+                                <div className="mt-2 animate-in fade-in slide-in-from-top-2">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Lender Name" 
+                                        value={lenderName} 
+                                        onChange={e => setLenderName(e.target.value)}
+                                        className="w-full bg-amber-500/10 text-amber-200 placeholder:text-amber-500/50 text-sm px-4 py-2 rounded-xl outline-none border border-amber-500/20"
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    <div className="flex gap-3">
-                        <div className="flex-1 bg-surface rounded-xl p-3 border border-white/5 flex items-center gap-2">
-                             <CalendarIcon size={16} className="text-muted" />
-                             <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent text-sm text-main w-full outline-none" />
-                        </div>
-                    </div>
-                    
-                    <input 
-                        type="text" 
-                        placeholder="Add a note... (#tags allowed)" 
-                        value={note} 
-                        onChange={e => setNote(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        className="w-full bg-surface text-main p-4 rounded-xl outline-none border border-white/5 focus:border-primary transition-colors text-sm"
-                    />
-
+                    {/* Submit Button */}
                     <button 
                         onClick={handleSave} 
                         disabled={!amount}
-                        className="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2"
                     >
-                        Save Transaction
+                        <span>Save Transaction</span>
+                        <ArrowRight size={18} />
                     </button>
                 </div>
             </div>

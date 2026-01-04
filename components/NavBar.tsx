@@ -5,7 +5,7 @@ import { ViewState } from '../types';
 interface NavBarProps {
   currentView: ViewState;
   onChangeView: (view: ViewState) => void;
-  onAddClick: () => void;
+  onAddClick: (e: React.MouseEvent) => void;
 }
 
 export const NavBar: React.FC<NavBarProps> = ({ currentView, onChangeView, onAddClick }) => {
@@ -16,16 +16,20 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, onChangeView, onAdd
 
   return (
     <div className="fixed bottom-0 left-0 w-full h-[88px] glass z-50 pb-5 border-t border-white/5">
-      <div className="flex justify-around items-center h-full px-4 max-w-md mx-auto">
+      <div className="flex justify-around items-center h-full px-4 max-w-md mx-auto relative">
         <button onClick={() => onChangeView('dashboard')} className={navItemClass('dashboard')}>
           <Home size={26} strokeWidth={currentView === 'dashboard' ? 2.5 : 2} />
           <span className="text-[10px] font-medium tracking-wide">Home</span>
         </button>
 
-        <div className="relative -top-6">
+        {/* Floating Action Button Container */}
+        <div className="relative -top-6 z-50">
           <button 
-            onClick={onAddClick}
-            className="flex items-center justify-center w-16 h-16 bg-primary text-white rounded-full shadow-glow active:scale-95 transition-transform border-4 border-[#000000]"
+            onClick={(e) => {
+                e.stopPropagation();
+                onAddClick(e);
+            }}
+            className="flex items-center justify-center w-16 h-16 bg-primary text-white rounded-full shadow-glow active:scale-95 transition-transform border-4 border-[#000000] z-50"
           >
             <Plus size={32} />
           </button>

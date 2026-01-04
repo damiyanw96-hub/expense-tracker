@@ -35,6 +35,8 @@ const DEFAULT_DATA: AppData = {
     theme: 'indigo',
     darkMode: true,
     notificationsEnabled: false,
+    expenseReminders: false,
+    debtReminders: false,
     privacyMode: false,
     lastOpened: new Date().toISOString(),
     currencySymbol: 'BDT',
@@ -42,7 +44,8 @@ const DEFAULT_DATA: AppData = {
   },
   profile: {
     name: 'User',
-    monthlyGoal: 5000
+    monthlyGoal: 5000,
+    dailyGoal: 500
   }
 };
 

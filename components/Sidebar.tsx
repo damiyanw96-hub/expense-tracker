@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, User, Settings, TrendingUp, HandCoins, X, GripVertical, Moon, Sun, Download, Upload, Trash2, Check, Plus, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, User, Settings, TrendingUp, HandCoins, X, GripVertical, Moon, Sun, Download, Upload, Trash2, Check, Plus, ChevronDown, ChevronRight, AlertTriangle, Bell, BellOff } from 'lucide-react';
 import { AppData, TransactionType, CategoryItem } from '../types';
 
 interface SidebarProps {
@@ -86,6 +86,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
     const handleSave = () => {
         updateData({ profile: localProfile, settings: localSettings });
         setSidebarView('menu');
+    };
+
+    const toggleNotification = async (type: 'expense' | 'debt') => {
+        if (!('Notification' in window)) {
+            alert('This browser does not support notifications.');
+            return;
+        }
+
+        const currentVal = type === 'expense' ? localSettings.expenseReminders : localSettings.debtReminders;
+        
+        if (!currentVal) {
+             const permission = await Notification.requestPermission();
+             if (permission !== 'granted') {
+                 alert('Permission denied. Please enable notifications in your browser settings.');
+                 return;
+             }
+        }
+
+        setLocalSettings(prev => ({
+            ...prev,
+            [type === 'expense' ? 'expenseReminders' : 'debtReminders']: !currentVal
+        }));
     };
 
     // --- Category Logic ---
@@ -301,6 +323,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                             </div>
                             <p className="text-[10px] text-muted mt-2">This goal is used to calculate your budget progress bars.</p>
                         </div>
+                        <div className="group">
+                            <label className="text-[10px] uppercase font-bold text-muted block mb-1.5">Daily Budget Goal</label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">{data.settings.currencySymbol}</span>
+                                <input 
+                                type="number" 
+                                value={localProfile.dailyGoal}
+                                onChange={(e) => setLocalProfile({ ...localProfile, dailyGoal: parseFloat(e.target.value) || 0 })}
+                                className="w-full bg-surface rounded-xl pl-10 pr-4 py-3 text-sm text-main border border-white/10 focus:border-primary outline-none transition-colors"
+                                />
+                            </div>
+                            <p className="text-[10px] text-muted mt-2">Set a target for how much you want to spend each day.</p>
+                        </div>
                     </div>
                 </div>
                 <div className="p-4 border-t border-white/5 bg-dark flex gap-3">
@@ -401,7 +436,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
              <>
                 <MenuHeader title="Settings" />
                 <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-                    <div className="bg-surface p-4 rounded-2xl border border-white/5">
+                    <div className="bg-surface p-4 rounded-2xl border border-white/5 space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 {localSettings.darkMode ? <Moon size={16} className="text-muted"/> : <Sun size={16} className="text-muted"/>}
@@ -409,6 +444,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                             </div>
                             <button onClick={() => setLocalSettings(prev => ({ ...prev, darkMode: !prev.darkMode }))} className={`w-11 h-6 rounded-full relative transition-colors ${localSettings.darkMode ? 'bg-primary' : 'bg-slate-500'}`}>
                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${localSettings.darkMode ? 'left-6' : 'left-1'}`} />
+                            </button>
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                            <div className="flex items-center gap-3">
+                                {localSettings.expenseReminders ? <Bell size={16} className="text-primary"/> : <BellOff size={16} className="text-muted"/>}
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-medium text-main">Daily Reminders</span>
+                                    <span className="text-[10px] text-muted">Update expenses daily</span>
+                                </div>
+                            </div>
+                            <button onClick={() => toggleNotification('expense')} className={`w-11 h-6 rounded-full relative transition-colors ${localSettings.expenseReminders ? 'bg-primary' : 'bg-slate-500'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${localSettings.expenseReminders ? 'left-6' : 'left-1'}`} />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                            <div className="flex items-center gap-3">
+                                {localSettings.debtReminders ? <Bell size={16} className="text-primary"/> : <BellOff size={16} className="text-muted"/>}
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-medium text-main">Debt Reminders</span>
+                                    <span className="text-[10px] text-muted">Alerts on due dates</span>
+                                </div>
+                            </div>
+                            <button onClick={() => toggleNotification('debt')} className={`w-11 h-6 rounded-full relative transition-colors ${localSettings.debtReminders ? 'bg-primary' : 'bg-slate-500'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${localSettings.debtReminders ? 'left-6' : 'left-1'}`} />
                             </button>
                         </div>
                     </div>

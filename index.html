@@ -60,6 +60,15 @@
             padding: {
                 'safe': 'env(safe-area-inset-top)',
                 'safe-bottom': 'env(safe-area-inset-bottom)',
+            },
+            animation: {
+                'pull-release': 'pullRelease 0.4s ease-out forwards',
+            },
+            keyframes: {
+                pullRelease: {
+                    '0%': { transform: 'translateY(20px)', opacity: '0.5' },
+                    '100%': { transform: 'translateY(0)', opacity: '1' },
+                }
             }
           }
         }
@@ -85,6 +94,11 @@
         --text-muted: 99 99 102;
       }
       
+      html, body {
+        height: 100%;
+        overflow: hidden; /* Lock body scroll */
+      }
+      
       body {
         background-color: rgb(var(--bg-core));
         color: rgb(var(--text-main));
@@ -92,7 +106,6 @@
         -webkit-tap-highlight-color: transparent;
         overscroll-behavior-y: none;
         transition: background-color 0.3s ease, color 0.3s ease;
-        padding-top: env(safe-area-inset-top);
       }
       
       /* Custom Scrollbar */
@@ -136,6 +149,20 @@
       .pb-safe {
         padding-bottom: env(safe-area-inset-bottom, 20px);
       }
+      
+      /* Highlight style for search */
+      mark.highlight {
+          background-color: rgba(var(--color-primary), 0.3);
+          color: rgb(var(--text-main));
+          border-radius: 4px;
+          padding: 0 2px;
+      }
+      
+      /* View Transitions */
+      .fade-enter { opacity: 0; transform: scale(0.98); }
+      .fade-enter-active { opacity: 1; transform: scale(1); transition: opacity 300ms, transform 300ms; }
+      .fade-exit { opacity: 1; transform: scale(1); }
+      .fade-exit-active { opacity: 0; transform: scale(0.98); transition: opacity 200ms, transform 200ms; }
     </style>
   <script type="importmap">
 {

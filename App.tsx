@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavBar } from './components/NavBar';
-import { Transaction, ViewState, TransactionType, Category, AppData, Wallet, WalletType } from './types';
+import { Transaction, ViewState, TransactionType, Category, AppData, Wallet, WalletType, Debt } from './types';
 import * as StorageService from './services/storage';
 import { DashboardView } from './components/DashboardView';
 import { HistoryView } from './components/HistoryView';
@@ -12,7 +12,7 @@ import {
   ChevronDown, 
   Utensils, Cookie, CreditCard, Banknote, X, PlusCircle, Check,
   Menu, ShoppingBag, Zap, Music, Bike, MoreHorizontal, Activity, Landmark,
-  Briefcase, GraduationCap, ArrowRightLeft, Loader2
+  Briefcase, GraduationCap, ArrowRightLeft
 } from 'lucide-react';
 
 // --- Helpers ---
@@ -60,6 +60,37 @@ const formatMoney = (amount: number, symbol: string) => {
     }
 };
 
+// --- Skeletons ---
+const SkeletonPulse = ({ className }: { className: string }) => (
+    <div className={`animate-pulse bg-surface/50 ${className}`} />
+);
+
+const AppSkeleton = () => (
+    <div className="h-full w-full bg-dark p-5 pt-safe space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-white/5">
+            <div className="flex items-center gap-3">
+                <SkeletonPulse className="w-10 h-10 rounded-full" />
+                <div className="space-y-2">
+                    <SkeletonPulse className="w-20 h-3 rounded" />
+                    <SkeletonPulse className="w-32 h-5 rounded" />
+                </div>
+            </div>
+             <SkeletonPulse className="w-24 h-8 rounded-full" />
+        </div>
+        <SkeletonPulse className="w-full h-48 rounded-3xl" />
+        <div className="flex gap-4">
+             <SkeletonPulse className="flex-1 h-20 rounded-2xl" />
+             <SkeletonPulse className="flex-1 h-20 rounded-2xl" />
+        </div>
+        <div className="space-y-4">
+            <SkeletonPulse className="w-32 h-4 rounded" />
+            <SkeletonPulse className="w-full h-16 rounded-2xl" />
+            <SkeletonPulse className="w-full h-16 rounded-2xl" />
+            <SkeletonPulse className="w-full h-16 rounded-2xl" />
+        </div>
+    </div>
+);
+
 const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolean, onClose: () => void, onConfirm: () => void }) => {
     if (!isOpen) return null;
     return (
@@ -85,6 +116,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm }: { isOpen: boole
 export default function App() {
   const [view, setView] = useState<ViewState>('dashboard');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addModalData, setAddModalData] = useState<{ type: TransactionType, category?: string, amount?: number, note?: string }>({ type: TransactionType.EXPENSE });
   const [data, setData] = useState<AppData | null>(null);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -93,7 +125,12 @@ export default function App() {
   useEffect(() => {
     // Load from IndexedDB
     const load = async () => {
+        const start = Date.now();
         const d = await StorageService.getAppData();
+        const end = Date.now();
+        if (end - start < 300) {
+            await new Promise(r => setTimeout(r, 400)); 
+        }
         setData(d);
     };
     load();
@@ -105,6 +142,26 @@ export default function App() {
       document.body.className = `theme-${data.settings.theme} ${data.settings.darkMode ? '' : 'light-mode'}`;
     }
   }, [data]);
+
+  // Back Button / History Management
+  useEffect(() => {
+     window.history.pushState(null, '', window.location.href);
+     const onPopState = (e: PopStateEvent) => {
+        let handled = false;
+        
+        // Priority checks for back button
+        if (isSidebarOpen) { setIsSidebarOpen(false); handled = true; } 
+        else if (isWalletModalOpen) { setIsWalletModalOpen(false); handled = true; } 
+        else if (isAddOpen) { setIsAddOpen(false); handled = true; } 
+        else if (deleteConfirmation.isOpen) { setDeleteConfirmation({ isOpen: false, id: null }); handled = true; } 
+        else if (view !== 'dashboard') { setView('dashboard'); handled = true; }
+
+        if (handled) window.history.pushState(null, '', window.location.href);
+     };
+
+     window.addEventListener('popstate', onPopState);
+     return () => window.removeEventListener('popstate', onPopState);
+  }, [isSidebarOpen, isWalletModalOpen, isAddOpen, deleteConfirmation, view]);
 
   const updateData = (newData: Partial<AppData>) => {
     setData(prev => prev ? ({ ...prev, ...newData }) : null);
@@ -123,6 +180,11 @@ export default function App() {
     setIsAddOpen(false);
   };
 
+  const handleAddDebt = (debt: Debt) => {
+      if (!data) return;
+      updateData({ debts: [debt, ...data.debts] });
+  };
+
   const handleTransfer = (amount: number, fromId: string, toId: string, note: string, dateStr: string) => {
     if (!data) return;
     const timestamp = Date.now();
@@ -133,16 +195,26 @@ export default function App() {
     setIsAddOpen(false);
   };
 
-  if (!data) return <div className="min-h-screen bg-dark flex items-center justify-center"><Loader2 className="w-10 h-10 text-primary animate-spin" /></div>;
+  const openAddModal = (e?: React.MouseEvent, type: TransactionType = TransactionType.EXPENSE, quickData?: { category?: string, amount?: number, note?: string }) => {
+      if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+      }
+      setAddModalData({ type, ...quickData });
+      setIsAddOpen(true);
+  };
+
+  if (!data) return <AppSkeleton />;
 
   return (
-    <div className="min-h-screen bg-dark text-main font-sans selection:bg-primary/30 pb-safe transition-colors duration-300">
+    <div className="h-[100dvh] w-full bg-dark text-main font-sans selection:bg-primary/30 transition-colors duration-300 flex flex-col overflow-hidden relative">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} data={data} updateData={updateData} onViewChange={setView} />
       
-      <div className="sticky top-0 z-40 glass pt-safe pt-2 px-4 pb-4 shadow-sm border-b border-white/5">
+      {/* Header */}
+      <div className="flex-none pt-safe pt-2 px-5 pb-4 shadow-sm border-b border-white/5 z-40 glass">
          <div className="flex items-center justify-between gap-4 max-w-md mx-auto">
              <div className="flex items-center gap-3">
-                 <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-muted hover:text-main rounded-full hover:bg-surface transition-colors">
+                 <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-muted hover:text-main rounded-full hover:bg-surface transition-colors active:scale-95 duration-200">
                    <Menu size={24} />
                  </button>
                  <div className="flex flex-col items-start">
@@ -150,20 +222,47 @@ export default function App() {
                       <h1 className="text-lg font-bold text-main tracking-wide leading-none">{data.profile.name}</h1>
                  </div>
              </div>
-             <button onClick={() => setIsWalletModalOpen(true)} className="flex items-center gap-2 bg-surface hover:bg-surface/80 transition-colors py-1.5 px-3 rounded-full border border-white/10 max-w-[120px]">
+             <button onClick={() => setIsWalletModalOpen(true)} className="flex items-center gap-2 bg-surface hover:bg-surface/80 active:scale-95 transition-all py-1.5 px-3 rounded-full border border-white/10 max-w-[120px]">
                  <span className="text-xs font-semibold text-main truncate">{data.wallets.find(w => w.id === data.currentWalletId)?.name}</span>
                  <ChevronDown size={14} className="text-muted shrink-0" />
              </button>
          </div>
       </div>
       
-      <main className="container mx-auto max-w-md min-h-screen relative pb-32 px-4">
-        {view === 'dashboard' && <DashboardView data={data} setView={setView} updateData={updateData} formatMoney={formatMoney} CategoryIcon={CategoryIcon} />}
-        {view === 'history' && <HistoryView data={data} onRequestDelete={(id) => setDeleteConfirmation({ isOpen: true, id })} formatMoney={formatMoney} CategoryIcon={CategoryIcon} />}
-        {view === 'debts' && <DebtView data={data} updateData={updateData} formatMoney={formatMoney} />}
+      {/* Main Content */}
+      <main className="flex-1 w-full max-w-md mx-auto overflow-hidden relative pb-32">
+        <div className={`h-full w-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${view === 'dashboard' ? 'opacity-100' : 'opacity-0 scale-95 absolute top-0 pointer-events-none'}`}>
+            <div className="h-full overflow-y-auto no-scrollbar p-5">
+                <DashboardView data={data} setView={setView} updateData={updateData} formatMoney={formatMoney} CategoryIcon={CategoryIcon} onAddTransactionRequest={(t, q) => openAddModal(undefined, t, q)} />
+            </div>
+        </div>
+
+        <div className={`h-full w-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${view === 'history' ? 'opacity-100' : 'opacity-0 scale-95 absolute top-0 pointer-events-none'}`}>
+             <div className="h-full overflow-y-auto no-scrollbar p-5">
+                <HistoryView data={data} onRequestDelete={(id) => setDeleteConfirmation({ isOpen: true, id })} formatMoney={formatMoney} CategoryIcon={CategoryIcon} />
+            </div>
+        </div>
+
+         <div className={`h-full w-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${view === 'debts' ? 'opacity-100' : 'opacity-0 scale-95 absolute top-0 pointer-events-none'}`}>
+             <div className="h-full overflow-y-auto no-scrollbar p-5">
+                <DebtView data={data} updateData={updateData} formatMoney={formatMoney} onSettleTransaction={handleAddTransaction} />
+            </div>
+        </div>
       </main>
       
-      <AddTransactionModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} data={data} onAdd={handleAddTransaction} onTransfer={handleTransfer} getDateTime={getDateTime} CategoryIcon={CategoryIcon} />
+      {/* Modals */}
+      <AddTransactionModal 
+        isOpen={isAddOpen} 
+        onClose={() => setIsAddOpen(false)} 
+        data={data} 
+        onAdd={handleAddTransaction} 
+        onTransfer={handleTransfer} 
+        onAddDebt={handleAddDebt} 
+        getDateTime={getDateTime} 
+        CategoryIcon={CategoryIcon} 
+        initialData={addModalData} 
+      />
+      
       <DeleteConfirmationModal isOpen={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({ isOpen: false, id: null })} onConfirm={() => { if (deleteConfirmation.id) { updateData({ transactions: data.transactions.filter(t => t.id !== deleteConfirmation.id) }); setDeleteConfirmation({ isOpen: false, id: null }); }}} />
 
        {isWalletModalOpen && (
@@ -203,14 +302,14 @@ export default function App() {
                                 <label htmlFor="isGoal" className="text-sm text-muted font-medium">This is a Savings Goal</label>
                             </div>
                             <input id="targetInput" name="target" type="number" placeholder="Target Amount" className="w-full bg-surface border border-white/10 rounded-xl px-4 py-3 text-sm text-main focus:border-primary outline-none hidden" />
-                            <button type="submit" className="bg-primary text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2"><PlusCircle size={20} /> Create Wallet</button>
+                            <button type="submit" className="bg-primary text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"><PlusCircle size={20} /> Create Wallet</button>
                         </form>
                     </div>
                 </div>
             </div>
         )}
       
-      <NavBar currentView={view} onChangeView={setView} onAddClick={() => setIsAddOpen(true)} />
+      <NavBar currentView={view} onChangeView={setView} onAddClick={(e) => openAddModal(e, TransactionType.EXPENSE)} />
     </div>
   );
 }

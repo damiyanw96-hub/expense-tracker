@@ -1,3 +1,4 @@
+
 export enum TransactionType {
   INCOME = 'INCOME',
   EXPENSE = 'EXPENSE',
@@ -72,6 +73,8 @@ export interface UserSettings {
   theme: ThemeOption;
   darkMode: boolean;
   notificationsEnabled: boolean;
+  expenseReminders: boolean; // New
+  debtReminders: boolean; // New
   privacyMode: boolean;
   lastOpened: string;
   currencySymbol: string; 
@@ -81,6 +84,7 @@ export interface UserSettings {
 export interface UserProfile {
   name: string;
   monthlyGoal: number; // General spending limit
+  dailyGoal: number; // Daily spending limit
 }
 
 export interface AppData {
