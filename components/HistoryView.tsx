@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Search, X, FileText, Calendar as CalendarIcon, PieChart, Shuffle, Trash2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
+import { Download, Search, X, FileText, Calendar as CalendarIcon, PieChart, Shuffle, Trash2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { Transaction, TransactionType, AppData, CategoryItem } from '../types';
 import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -227,7 +228,9 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
     // Pagination State
-    const [visibleCount, setVisibleCount] = useState(20);
+    // Increased batch size to 50 for better UX on high refresh rate displays
+    const BATCH_SIZE = 50;
+    const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
     const loadMoreRef = useRef<HTMLDivElement>(null);
 
     const walletTransactions = data.transactions.filter((t: Transaction) => t.walletId === data.currentWalletId);
@@ -277,10 +280,10 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    setVisibleCount(prev => prev + 20);
+                    setVisibleCount(prev => Math.min(prev + BATCH_SIZE, filteredTransactions.length));
                 }
             },
-            { threshold: 0.1 }
+            { threshold: 0.1, rootMargin: '100px' }
         );
 
         if (loadMoreRef.current) {
@@ -288,7 +291,7 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
         }
 
         return () => observer.disconnect();
-    }, [visibleTransactions]);
+    }, [visibleTransactions, filteredTransactions.length]);
 
     const exportCSV = () => {
         const headers = ["Date", "Type", "Category", "Amount", "Note"];
@@ -338,7 +341,7 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
                           type="text" 
                           placeholder="Search or #tag..." 
                           value={searchTerm} 
-                          onChange={e => { setSearchTerm(e.target.value); setVisibleCount(20); }}
+                          onChange={e => { setSearchTerm(e.target.value); setVisibleCount(BATCH_SIZE); }}
                           className="bg-transparent text-sm text-main w-full outline-none"
                        />
                        {searchTerm && (
@@ -436,8 +439,8 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
                     ))}
                     {/* Infinite Scroll trigger */}
                     {visibleCount < filteredTransactions.length && (
-                        <div ref={loadMoreRef} className="py-4 text-center text-xs text-muted">
-                             Loading more...
+                        <div ref={loadMoreRef} className="py-6 flex items-center justify-center text-muted">
+                             <Loader2 size={20} className="animate-spin text-primary" />
                         </div>
                     )}
                     </>

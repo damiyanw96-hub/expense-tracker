@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { NavBar } from './components/NavBar';
 import { Transaction, ViewState, TransactionType, Category, AppData, Wallet, WalletType, Debt } from './types';
@@ -5,6 +6,7 @@ import * as StorageService from './services/storage';
 import { DashboardView } from './components/DashboardView';
 import { HistoryView } from './components/HistoryView';
 import { DebtView } from './components/DebtView';
+import { AnalyticsView } from './components/AnalyticsView';
 import { AddTransactionModal } from './components/AddTransactionModal';
 import { Sidebar } from './components/Sidebar';
 import { 
@@ -12,7 +14,7 @@ import {
   ChevronDown, 
   Utensils, Cookie, CreditCard, Banknote, X, PlusCircle, Check,
   Menu, ShoppingBag, Zap, Music, Bike, MoreHorizontal, Activity, Landmark,
-  Briefcase, GraduationCap, ArrowRightLeft
+  Briefcase, GraduationCap, ArrowRightLeft, UtensilsCrossed
 } from 'lucide-react';
 
 // --- Helpers ---
@@ -27,7 +29,8 @@ const CategoryIcon = ({ category, color }: { category: string, color?: string })
     case Category.TUITION: return <GraduationCap {...props} className="text-purple-400" />;
     case Category.LOAN: return <Landmark {...props} className="text-amber-400" />;
     case Category.BREAKFAST: return <Coffee {...props} className="text-orange-400" />;
-    case Category.DINNER: return <Utensils {...props} className="text-orange-500" />;
+    case Category.LUNCH: return <UtensilsCrossed {...props} className="text-orange-500" />;
+    case Category.DINNER: return <Utensils {...props} className="text-rose-500" />;
     case Category.FOODPANDA: return <Bike {...props} className="text-rose-500" />;
     case Category.SNACKS: return <Cookie {...props} className="text-amber-300" />;
     case Category.LOAN_PAYMENT: return <CreditCard {...props} className="text-red-400" />;
@@ -246,6 +249,12 @@ export default function App() {
          <div className={`h-full w-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${view === 'debts' ? 'opacity-100' : 'opacity-0 scale-95 absolute top-0 pointer-events-none'}`}>
              <div className="h-full overflow-y-auto no-scrollbar p-5">
                 <DebtView data={data} updateData={updateData} formatMoney={formatMoney} onSettleTransaction={handleAddTransaction} />
+            </div>
+        </div>
+
+        <div className={`h-full w-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${view === 'analytics' ? 'opacity-100' : 'opacity-0 scale-95 absolute top-0 pointer-events-none'}`}>
+             <div className="h-full overflow-y-auto no-scrollbar p-5">
+                <AnalyticsView data={data} formatMoney={formatMoney} />
             </div>
         </div>
       </main>

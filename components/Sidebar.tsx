@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, User, Settings, TrendingUp, HandCoins, X, GripVertical, Moon, Sun, Download, Upload, Trash2, Check, Plus, ChevronDown, ChevronRight, AlertTriangle, Bell, BellOff } from 'lucide-react';
+import { ArrowLeft, User, Settings, TrendingUp, X, GripVertical, Moon, Sun, Download, Upload, Trash2, Check, Plus, ChevronDown, ChevronRight, AlertTriangle, Bell, BellOff } from 'lucide-react';
 import { AppData, TransactionType, CategoryItem } from '../types';
 
 interface SidebarProps {
@@ -233,20 +234,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                         </div>
                         <ChevronRight size={16} className="text-muted/50" />
                     </button>
-
-                    <button onClick={() => { onViewChange('debts'); onClose(); }} className="w-full p-4 flex items-center justify-between bg-surface/50 hover:bg-surface rounded-2xl border border-white/5 transition-colors group">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-full bg-rose-500/10 text-rose-400 group-hover:scale-110 transition-transform"><HandCoins size={18}/></div>
-                            <span className="text-sm font-semibold text-main">Debt Tracker</span>
-                        </div>
-                        <ChevronRight size={16} className="text-muted/50" />
-                    </button>
-                </div>
-                
-                <div className="p-4 border-t border-white/5 bg-dark">
-                    <button onClick={onClose} className="w-full py-3 rounded-xl bg-surface text-muted font-medium hover:text-main flex items-center justify-center gap-2">
-                    <X size={16} /> Close Menu
-                    </button>
                 </div>
              </>
            )}
@@ -329,12 +316,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">{data.settings.currencySymbol}</span>
                                 <input 
                                 type="number" 
-                                value={localProfile.dailyGoal}
+                                placeholder="0 to disable"
+                                value={localProfile.dailyGoal || ''}
                                 onChange={(e) => setLocalProfile({ ...localProfile, dailyGoal: parseFloat(e.target.value) || 0 })}
                                 className="w-full bg-surface rounded-xl pl-10 pr-4 py-3 text-sm text-main border border-white/10 focus:border-primary outline-none transition-colors"
                                 />
                             </div>
-                            <p className="text-[10px] text-muted mt-2">Set a target for how much you want to spend each day.</p>
+                            <p className="text-[10px] text-muted mt-2">Set a target for daily spending. Set to 0 to disable.</p>
                         </div>
                     </div>
                 </div>

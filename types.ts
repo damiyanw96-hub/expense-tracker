@@ -14,6 +14,7 @@ export enum Category {
   
   // Expense specific
   BREAKFAST = 'Breakfast',
+  LUNCH = 'Lunch',
   DINNER = 'Dinner',
   FOODPANDA = 'Foodpanda',
   SNACKS = 'Snacks',
@@ -97,4 +98,4 @@ export interface AppData {
   profile: UserProfile;
 }
 
-export type ViewState = 'dashboard' | 'history' | 'debts';
+export type ViewState = 'dashboard' | 'history' | 'debts' | 'analytics';

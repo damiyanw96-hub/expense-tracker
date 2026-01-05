@@ -1,6 +1,7 @@
+
 import React, { useState, useRef } from 'react';
 import { TrendingUp, Eye, EyeOff, Target, Zap, RotateCw } from 'lucide-react';
-import { Transaction, TransactionType, AppData, Wallet, CategoryItem } from '../types';
+import { Transaction, TransactionType, AppData, Wallet, CategoryItem, Category } from '../types';
 
 interface DashboardProps {
     data: AppData;
@@ -31,28 +32,65 @@ export const DashboardView: React.FC<DashboardProps> = ({ data, setView, updateD
         .reduce((sum, t) => sum + t.amount, 0);
     const dailyLimit = data.profile.dailyGoal || 0;
     const dailyProgress = dailyLimit > 0 ? Math.min((dailySpent / dailyLimit) * 100, 100) : 0;
-    const isOverBudget = dailySpent > dailyLimit;
+    const isOverBudget = dailyLimit > 0 && dailySpent > dailyLimit;
 
-    // Frequent Transactions (Quick Actions)
-    const getFrequentTransactions = () => {
-        const counts: Record<string, { count: number, category: string, amount?: number, note?: string }> = {};
+    // Frequent Transactions (Quick Actions) Logic
+    const getSmartQuickActions = () => {
+        // 1. Calculate frequency map (by Category only)
+        const counts: Record<string, number> = {};
         
-        walletTransactions.slice(0, 100).forEach(t => {
+        walletTransactions.slice(0, 150).forEach(t => {
             if (t.type === TransactionType.EXPENSE) {
-                // Key by category + approximate amount to suggest common purchases
-                const key = `${t.category}-${Math.round(t.amount)}`;
-                if (!counts[key]) counts[key] = { count: 0, category: t.category, amount: t.amount, note: t.note };
-                counts[key].count++;
+                counts[t.category] = (counts[t.category] || 0) + 1;
             }
         });
 
-        return Object.values(counts)
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 4) // Top 4
-            .filter(item => item.count > 1); // Must appear at least twice
+        const sortedCategories = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([cat]) => cat);
+
+        // 2. Determine Time-Based Suggestion for the 3rd slot
+        const hour = new Date().getHours();
+        let timeSuggestion = Category.SNACKS;
+
+        if (hour >= 5 && hour < 11) timeSuggestion = Category.BREAKFAST;
+        else if (hour >= 11 && hour < 16) timeSuggestion = Category.LUNCH;
+        else if (hour >= 16 && hour < 21) timeSuggestion = Category.DINNER;
+        else timeSuggestion = Category.SNACKS;
+
+        // 3. Construct the list (Max 4 items)
+        
+        const actions: string[] = [];
+        
+        // Add top 2
+        for (const cat of sortedCategories) {
+            if (actions.length < 2 && cat !== timeSuggestion) {
+                actions.push(cat);
+            }
+        }
+
+        // Add time suggestion (always 3rd slot conceptually, pushed next)
+        actions.push(timeSuggestion);
+
+        // Fill remaining slot
+        for (const cat of sortedCategories) {
+            if (actions.length < 4 && !actions.includes(cat)) {
+                actions.push(cat);
+            }
+        }
+
+        // If we still don't have 4 and user is new, fill with defaults
+        const defaults = [Category.TRANSPORT, Category.SHOPPING, Category.BILLS];
+        for (const def of defaults) {
+            if (actions.length < 4 && !actions.includes(def)) {
+                actions.push(def);
+            }
+        }
+        
+        return actions.slice(0, 4);
     };
     
-    const quickActions = getFrequentTransactions();
+    const quickActions = getSmartQuickActions();
 
     // Budget Status
     const expensesByCategory = walletTransactions
@@ -78,7 +116,6 @@ export const DashboardView: React.FC<DashboardProps> = ({ data, setView, updateD
 
     // Pull to Refresh Logic
     const handleTouchStart = (e: React.TouchEvent) => {
-        // Find the scrollable container (parent with overflow-y-auto)
         const scroller = (e.target as HTMLElement).closest('.overflow-y-auto');
         if (scroller && scroller.scrollTop === 0) {
             pullStart.current = e.targetTouches[0].clientY;
@@ -94,7 +131,6 @@ export const DashboardView: React.FC<DashboardProps> = ({ data, setView, updateD
              if (pullRef.current) {
                  pullRef.current.style.transition = 'none';
                  pullRef.current.style.transform = `translateY(${diff * 0.4}px)`;
-                 // Fade in the spinner as you pull
                  pullRef.current.style.opacity = `${Math.min(diff / 100, 1)}`;
                  pullRef.current.style.transform += ` rotate(${diff * 2}deg)`;
              }
@@ -107,26 +143,21 @@ export const DashboardView: React.FC<DashboardProps> = ({ data, setView, updateD
         if (pullRef.current) {
              pullRef.current.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease';
              
-             // Check if pulled enough (opacity is a proxy for distance here from Move logic)
-             // Using transform to check distance is safer but this works with the logic above
              const currentOpacity = parseFloat(pullRef.current.style.opacity || '0');
              
              if (currentOpacity > 0.6) {
                  setRefreshing(true);
-                 // Snap to refreshing position
                  pullRef.current.style.transform = 'translateY(40px) rotate(0deg)';
                  pullRef.current.style.opacity = '1';
                  
                  setTimeout(() => {
                      setRefreshing(false);
-                     // Hide after refresh
                      if (pullRef.current) {
                         pullRef.current.style.transform = 'translateY(0px)';
                         pullRef.current.style.opacity = '0';
                      }
                  }, 1500);
              } else {
-                 // Reset if not pulled enough
                  pullRef.current.style.transform = 'translateY(0px)';
                  pullRef.current.style.opacity = '0';
              }
@@ -142,7 +173,7 @@ export const DashboardView: React.FC<DashboardProps> = ({ data, setView, updateD
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-            {/* Pull Indicator - Added opacity-0 default and z-index adjustment */}
+            {/* Pull Indicator */}
             <div ref={pullRef} className="absolute top-0 left-0 w-full flex justify-center -mt-10 pointer-events-none z-0 opacity-0">
                 <div className={`p-2.5 rounded-full bg-surface shadow-xl border border-white/10 ${refreshing ? 'animate-spin' : ''}`}>
                     <RotateCw size={18} className="text-primary" />
@@ -198,44 +229,59 @@ export const DashboardView: React.FC<DashboardProps> = ({ data, setView, updateD
             {quickActions.length > 0 && (
                 <div className="px-1">
                     <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-2">Quick Add</h3>
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                        {quickActions.map((qa, idx) => (
+                    <div className="grid grid-cols-4 gap-2">
+                        {quickActions.map((category, idx) => (
                             <button 
                                 key={idx}
-                                onClick={() => onAddTransactionRequest(TransactionType.EXPENSE, { category: qa.category, amount: qa.amount, note: qa.note })}
-                                className="flex-shrink-0 bg-surface border border-white/5 rounded-2xl p-3 flex flex-col items-center gap-1 min-w-[80px] active:scale-95 transition-transform"
+                                onClick={() => onAddTransactionRequest(TransactionType.EXPENSE, { category })}
+                                className="flex flex-col items-center justify-center gap-1.5 bg-surface border border-white/5 rounded-2xl p-3 active:scale-95 transition-all hover:bg-surface/80 shadow-sm"
                             >
-                                <div className="p-2 bg-black/20 rounded-full text-muted">
-                                    <CategoryIcon category={qa.category} color={data.categories.find(c => c.name === qa.category)?.color} />
+                                <div className="p-2.5 bg-black/20 rounded-xl text-muted">
+                                    <CategoryIcon category={category} color={data.categories.find(c => c.name === category)?.color} />
                                 </div>
-                                <span className="text-[10px] font-medium text-main truncate max-w-[80px]">{qa.category}</span>
-                                <span className="text-[10px] font-bold text-muted">{formatMoney(qa.amount || 0, data.settings.currencySymbol)}</span>
+                                <span className="text-[10px] font-medium text-main truncate max-w-full">{category}</span>
                             </button>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* Daily Budget */}
-            {dailyLimit > 0 && (
-                <div className={`rounded-2xl p-4 border flex items-center gap-4 transition-colors duration-500 ${isOverBudget ? 'bg-rose-500/10 border-rose-500/30' : 'bg-surface border-white/5'}`}>
-                    <div className={`p-3 rounded-full ${isOverBudget ? 'bg-rose-500 text-white animate-pulse' : 'bg-primary/10 text-primary'}`}>
-                        <Zap size={20} />
-                    </div>
-                    <div className="flex-1">
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm font-bold text-main">Daily Budget</span>
+            {/* Daily Budget - Always Visible */}
+            <div className={`rounded-2xl p-4 border flex items-center gap-4 transition-colors duration-500 ${isOverBudget ? 'bg-rose-500/10 border-rose-500/30' : 'bg-surface border-white/5'}`}>
+                <div className={`p-3 rounded-full ${isOverBudget ? 'bg-rose-500 text-white animate-pulse' : 'bg-primary/10 text-primary'}`}>
+                    <Zap size={20} />
+                </div>
+                <div className="flex-1">
+                    <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-bold text-main">Daily Budget</span>
+                        {dailyLimit > 0 ? (
                             <span className={`text-xs font-bold ${isOverBudget ? 'text-rose-500' : 'text-muted'}`}>
                                 {formatMoney(dailySpent, data.settings.currencySymbol)} / {formatMoney(dailyLimit, data.settings.currencySymbol)}
                             </span>
-                        </div>
-                        <div className="h-2 bg-black/20 rounded-full overflow-hidden">
-                             <div className={`h-full transition-all duration-500 ${isOverBudget ? 'bg-rose-500' : 'bg-primary'}`} style={{ width: `${dailyProgress}%` }} />
-                        </div>
-                        {isOverBudget && <p className="text-[10px] text-rose-500 font-bold mt-1">You have exceeded your daily limit!</p>}
+                        ) : (
+                            <button 
+                                onClick={() => {
+                                    const val = prompt("Enter your daily spending goal:");
+                                    if(val && !isNaN(parseFloat(val))) {
+                                        updateData({ profile: { ...data.profile, dailyGoal: parseFloat(val) }});
+                                    }
+                                }} 
+                                className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg hover:bg-primary/20"
+                            >
+                                Set Goal
+                            </button>
+                        )}
                     </div>
+                    <div className="h-2 bg-black/20 rounded-full overflow-hidden">
+                         {dailyLimit > 0 ? (
+                             <div className={`h-full transition-all duration-500 ${isOverBudget ? 'bg-rose-500' : 'bg-primary'}`} style={{ width: `${dailyProgress}%` }} />
+                         ) : (
+                             <div className="h-full bg-muted/20 w-full opacity-20" />
+                         )}
+                    </div>
+                    {isOverBudget && <p className="text-[10px] text-rose-500 font-bold mt-1">You have exceeded your daily limit!</p>}
                 </div>
-            )}
+            </div>
 
             {/* Budget Alerts */}
             {budgetAlerts.length > 0 && (

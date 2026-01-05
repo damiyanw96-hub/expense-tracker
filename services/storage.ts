@@ -1,3 +1,4 @@
+
 import { AppData, TransactionType, Category, CategoryItem } from '../types';
 
 const DB_NAME = 'ZenWalletDB';
@@ -12,7 +13,8 @@ const DEFAULT_CATEGORIES: CategoryItem[] = [
     { id: 'cat_loan_in', name: Category.LOAN, type: TransactionType.INCOME, color: '#f59e0b', isSystem: true },
     
     { id: 'cat_break', name: Category.BREAKFAST, type: TransactionType.EXPENSE, color: '#fb923c', isSystem: true },
-    { id: 'cat_dinner', name: Category.DINNER, type: TransactionType.EXPENSE, color: '#f97316', isSystem: true },
+    { id: 'cat_lunch', name: Category.LUNCH, type: TransactionType.EXPENSE, color: '#f97316', isSystem: true },
+    { id: 'cat_dinner', name: Category.DINNER, type: TransactionType.EXPENSE, color: '#ea580c', isSystem: true },
     { id: 'cat_fp', name: Category.FOODPANDA, type: TransactionType.EXPENSE, color: '#ef4444', isSystem: true },
     { id: 'cat_snack', name: Category.SNACKS, type: TransactionType.EXPENSE, color: '#fcd34d', isSystem: true },
     { id: 'cat_loan_out', name: Category.LOAN_PAYMENT, type: TransactionType.EXPENSE, color: '#ef4444', isSystem: true },
@@ -45,7 +47,7 @@ const DEFAULT_DATA: AppData = {
   profile: {
     name: 'User',
     monthlyGoal: 5000,
-    dailyGoal: 500
+    dailyGoal: 0 // Default to 0 (disabled/optional)
   }
 };
 
