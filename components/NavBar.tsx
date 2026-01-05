@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Home, Plus, Clock, PieChart, HandCoins } from 'lucide-react';
 import { ViewState } from '../types';
@@ -16,8 +15,8 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, onChangeView, onAdd
     }`;
 
   return (
-    <div className="fixed bottom-0 left-0 w-full h-[88px] glass z-50 pb-5 border-t border-white/5">
-      <div className="flex justify-between items-center h-full px-2 max-w-md mx-auto relative">
+    <div className="fixed bottom-0 left-0 w-full glass z-50 border-t border-white/5 pb-safe-bottom">
+      <div className="h-[60px] flex justify-between items-center px-2 max-w-md mx-auto relative">
         
         <button onClick={() => onChangeView('dashboard')} className={navItemClass('dashboard')}>
           <Home size={24} strokeWidth={currentView === 'dashboard' ? 2.5 : 2} />
@@ -30,13 +29,13 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, onChangeView, onAdd
         </button>
 
         {/* Floating Action Button Container */}
-        <div className="relative -top-6 z-50 px-2">
+        <div className="relative -top-8 z-50 px-2">
           <button 
             onClick={(e) => {
                 e.stopPropagation();
                 onAddClick(e);
             }}
-            className="flex items-center justify-center w-14 h-14 bg-primary text-white rounded-full shadow-glow active:scale-95 transition-transform border-4 border-[#000000] z-50"
+            className="flex items-center justify-center w-14 h-14 bg-primary text-white rounded-full shadow-glow active:scale-95 transition-transform border-4 border-[#1c1c1e] z-50"
           >
             <Plus size={28} />
           </button>

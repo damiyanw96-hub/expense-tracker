@@ -8,6 +8,7 @@ import { HistoryView } from './components/HistoryView';
 import { DebtView } from './components/DebtView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { AddTransactionModal } from './components/AddTransactionModal';
+import { OnboardingModal } from './components/OnboardingModal';
 import { Sidebar } from './components/Sidebar';
 import { 
   Trash2, Coffee, Car, 
@@ -69,7 +70,7 @@ const SkeletonPulse = ({ className }: { className: string }) => (
 );
 
 const AppSkeleton = () => (
-    <div className="h-full w-full bg-dark p-5 pt-safe space-y-6">
+    <div className="h-full w-full bg-dark p-5 pt-safe space-y-6 relative overflow-hidden">
         <div className="flex items-center justify-between pb-4 border-b border-white/5">
             <div className="flex items-center gap-3">
                 <SkeletonPulse className="w-10 h-10 rounded-full" />
@@ -120,6 +121,8 @@ export default function App() {
   const [view, setView] = useState<ViewState>('dashboard');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addModalData, setAddModalData] = useState<{ type: TransactionType, category?: string, amount?: number, note?: string }>({ type: TransactionType.EXPENSE });
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  
   const [data, setData] = useState<AppData | null>(null);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -155,7 +158,7 @@ export default function App() {
         // Priority checks for back button
         if (isSidebarOpen) { setIsSidebarOpen(false); handled = true; } 
         else if (isWalletModalOpen) { setIsWalletModalOpen(false); handled = true; } 
-        else if (isAddOpen) { setIsAddOpen(false); handled = true; } 
+        else if (isAddOpen) { setIsAddOpen(false); setEditingTx(null); handled = true; } 
         else if (deleteConfirmation.isOpen) { setDeleteConfirmation({ isOpen: false, id: null }); handled = true; } 
         else if (view !== 'dashboard') { setView('dashboard'); handled = true; }
 
@@ -170,6 +173,32 @@ export default function App() {
     setData(prev => prev ? ({ ...prev, ...newData }) : null);
   };
 
+  const handleOnboardingComplete = (name: string, balance: number, dailyGoal: number) => {
+      if (!data) return;
+      
+      let newTransactions = [...data.transactions];
+      
+      // Create initial balance transaction if amount > 0
+      if (balance > 0) {
+          const initTx: Transaction = {
+              id: 'init_balance_' + Date.now(),
+              amount: balance,
+              type: TransactionType.INCOME,
+              category: 'Other',
+              date: new Date().toISOString(),
+              note: 'Initial Balance Adjustment',
+              walletId: data.currentWalletId
+          };
+          newTransactions = [initTx, ...newTransactions];
+      }
+
+      updateData({
+          profile: { ...data.profile, name, dailyGoal },
+          settings: { ...data.settings, hasOnboarded: true },
+          transactions: newTransactions
+      });
+  };
+
   const handleAddWallet = (name: string, type: WalletType, target: number) => {
     if (!data) return;
     const newWallet: Wallet = { id: Date.now().toString(), name, type, targetAmount: target };
@@ -181,6 +210,14 @@ export default function App() {
     if (!data) return;
     updateData({ transactions: [t, ...data.transactions] });
     setIsAddOpen(false);
+  };
+  
+  const handleEditTransaction = (updatedTx: Transaction) => {
+      if (!data) return;
+      const updatedTransactions = data.transactions.map(t => t.id === updatedTx.id ? updatedTx : t);
+      updateData({ transactions: updatedTransactions });
+      setIsAddOpen(false);
+      setEditingTx(null);
   };
 
   const handleAddDebt = (debt: Debt) => {
@@ -203,7 +240,13 @@ export default function App() {
           e.preventDefault();
           e.stopPropagation();
       }
+      setEditingTx(null);
       setAddModalData({ type, ...quickData });
+      setIsAddOpen(true);
+  };
+  
+  const openEditModal = (t: Transaction) => {
+      setEditingTx(t);
       setIsAddOpen(true);
   };
 
@@ -211,6 +254,9 @@ export default function App() {
 
   return (
     <div className="h-[100dvh] w-full bg-dark text-main font-sans selection:bg-primary/30 transition-colors duration-300 flex flex-col overflow-hidden relative">
+      <div className="bg-noise" />
+      <OnboardingModal isOpen={!data.settings.hasOnboarded} onComplete={handleOnboardingComplete} />
+      
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} data={data} updateData={updateData} onViewChange={setView} />
       
       {/* Header */}
@@ -233,16 +279,30 @@ export default function App() {
       </div>
       
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-md mx-auto overflow-hidden relative pb-32">
+      <main className="flex-1 w-full max-w-md mx-auto overflow-hidden relative pb-[calc(88px+env(safe-area-inset-bottom))]">
         <div className={`h-full w-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${view === 'dashboard' ? 'opacity-100' : 'opacity-0 scale-95 absolute top-0 pointer-events-none'}`}>
             <div className="h-full overflow-y-auto no-scrollbar p-5">
-                <DashboardView data={data} setView={setView} updateData={updateData} formatMoney={formatMoney} CategoryIcon={CategoryIcon} onAddTransactionRequest={(t, q) => openAddModal(undefined, t, q)} />
+                <DashboardView 
+                    data={data} 
+                    setView={setView} 
+                    updateData={updateData} 
+                    formatMoney={formatMoney} 
+                    CategoryIcon={CategoryIcon} 
+                    onAddTransactionRequest={(t, q) => openAddModal(undefined, t, q)} 
+                    onEditTransaction={openEditModal}
+                />
             </div>
         </div>
 
         <div className={`h-full w-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${view === 'history' ? 'opacity-100' : 'opacity-0 scale-95 absolute top-0 pointer-events-none'}`}>
              <div className="h-full overflow-y-auto no-scrollbar p-5">
-                <HistoryView data={data} onRequestDelete={(id) => setDeleteConfirmation({ isOpen: true, id })} formatMoney={formatMoney} CategoryIcon={CategoryIcon} />
+                <HistoryView 
+                    data={data} 
+                    onRequestDelete={(id) => setDeleteConfirmation({ isOpen: true, id })} 
+                    formatMoney={formatMoney} 
+                    CategoryIcon={CategoryIcon} 
+                    onEditTransaction={openEditModal}
+                />
             </div>
         </div>
 
@@ -262,14 +322,16 @@ export default function App() {
       {/* Modals */}
       <AddTransactionModal 
         isOpen={isAddOpen} 
-        onClose={() => setIsAddOpen(false)} 
+        onClose={() => { setIsAddOpen(false); setEditingTx(null); }} 
         data={data} 
         onAdd={handleAddTransaction} 
+        onEdit={handleEditTransaction}
         onTransfer={handleTransfer} 
         onAddDebt={handleAddDebt} 
         getDateTime={getDateTime} 
         CategoryIcon={CategoryIcon} 
         initialData={addModalData} 
+        editingTransaction={editingTx}
       />
       
       <DeleteConfirmationModal isOpen={deleteConfirmation.isOpen} onClose={() => setDeleteConfirmation({ isOpen: false, id: null })} onConfirm={() => { if (deleteConfirmation.id) { updateData({ transactions: data.transactions.filter(t => t.id !== deleteConfirmation.id) }); setDeleteConfirmation({ isOpen: false, id: null }); }}} />
@@ -277,7 +339,7 @@ export default function App() {
        {isWalletModalOpen && (
             <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center p-4">
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsWalletModalOpen(false)}></div>
-                <div className="relative bg-card w-full max-w-sm rounded-3xl p-6 border border-white/10 shadow-2xl animate-in slide-in-from-bottom-10">
+                <div className="relative bg-card w-full max-w-sm rounded-3xl p-6 border border-white/10 shadow-2xl animate-in slide-in-from-bottom-10 mb-safe">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xl font-bold text-main">Select Wallet</h3>
                         <button onClick={() => setIsWalletModalOpen(false)} className="p-1 bg-surface rounded-full text-muted active:scale-90"><X size={20} /></button>

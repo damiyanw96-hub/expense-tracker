@@ -42,7 +42,8 @@ const DEFAULT_DATA: AppData = {
     privacyMode: false,
     lastOpened: new Date().toISOString(),
     currencySymbol: 'BDT',
-    budgetLimits: {}
+    budgetLimits: {},
+    hasOnboarded: false
   },
   profile: {
     name: 'User',

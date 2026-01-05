@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { X, Calendar as CalendarIcon, Info, ArrowRight, Wallet as WalletIcon } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Info, ArrowRight, Wallet as WalletIcon, Save } from 'lucide-react';
 import { TransactionType, Category, AppData, Wallet, Transaction, CategoryItem, Debt } from '../types';
 
 interface AddModalProps {
@@ -7,14 +8,16 @@ interface AddModalProps {
     onClose: () => void;
     data: AppData;
     onAdd: (t: Transaction) => void;
+    onEdit?: (t: Transaction) => void;
     onTransfer: (amount: number, from: string, to: string, note: string, date: string) => void;
     onAddDebt?: (debt: Debt) => void;
     getDateTime: (d: string) => string;
     CategoryIcon: React.ComponentType<{ category: string, color?: string }>;
     initialData?: { type: TransactionType, category?: string, amount?: number, note?: string };
+    editingTransaction?: Transaction | null;
 }
 
-export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, data, onAdd, onTransfer, onAddDebt, getDateTime, CategoryIcon, initialData }) => {
+export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, data, onAdd, onEdit, onTransfer, onAddDebt, getDateTime, CategoryIcon, initialData, editingTransaction }) => {
     const [type, setType] = useState<TransactionType>(initialData?.type || TransactionType.EXPENSE);
     const [amount, setAmount] = useState('');
     const [note, setNote] = useState('');
@@ -25,15 +28,25 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
 
     useEffect(() => {
         if (isOpen) {
-            setType(initialData?.type || TransactionType.EXPENSE);
-            setAmount(initialData?.amount ? initialData.amount.toString() : '');
-            setNote(initialData?.note || '');
-            setCategory(initialData?.category || Category.OTHER);
-            setDate(new Date().toISOString().split('T')[0]);
-            setToWalletId('');
-            setLenderName('');
+            if (editingTransaction) {
+                setType(editingTransaction.type);
+                setAmount(editingTransaction.amount.toString());
+                setNote(editingTransaction.note || '');
+                setCategory(editingTransaction.category);
+                setDate(editingTransaction.date.split('T')[0]);
+                setToWalletId('');
+                setLenderName('');
+            } else {
+                setType(initialData?.type || TransactionType.EXPENSE);
+                setAmount(initialData?.amount ? initialData.amount.toString() : '');
+                setNote(initialData?.note || '');
+                setCategory(initialData?.category || Category.OTHER);
+                setDate(new Date().toISOString().split('T')[0]);
+                setToWalletId('');
+                setLenderName('');
+            }
         }
-    }, [isOpen, initialData]);
+    }, [isOpen, initialData, editingTransaction]);
 
     const calculateExpression = (expr: string): number | null => {
         const sanitized = expr.replace(/[^0-9+\-*/.]/g, '');
@@ -56,37 +69,51 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
 
         const numAmount = parseFloat(calculated.toFixed(2));
         
-        if (type === TransactionType.TRANSFER) {
-            if (!toWalletId || toWalletId === data.currentWalletId) {
-                alert("Please select a valid destination wallet");
-                return;
-            }
-            onTransfer(numAmount, data.currentWalletId, toWalletId, note, date);
-        } else {
-            const newTx: Transaction = {
-                id: Date.now().toString(),
+        if (editingTransaction && onEdit) {
+            // Edit Mode
+            const updatedTx: Transaction = {
+                ...editingTransaction,
                 amount: numAmount,
                 type,
                 category,
                 date: getDateTime(date),
                 note: lenderName ? `${note ? note + ' ' : ''}(Lender: ${lenderName})` : note,
-                walletId: data.currentWalletId
             };
-            
-            if (type === TransactionType.INCOME && category === Category.LOAN && lenderName && onAddDebt) {
-                const newDebt: Debt = {
+            onEdit(updatedTx);
+        } else {
+            // Add Mode
+            if (type === TransactionType.TRANSFER) {
+                if (!toWalletId || toWalletId === data.currentWalletId) {
+                    alert("Please select a valid destination wallet");
+                    return;
+                }
+                onTransfer(numAmount, data.currentWalletId, toWalletId, note, date);
+            } else {
+                const newTx: Transaction = {
                     id: Date.now().toString(),
-                    person: lenderName,
                     amount: numAmount,
-                    type: 'I_OWE',
-                    note: `Added via Income (Loan): ${note}`,
-                    isSettled: false,
-                    dueDate: undefined 
+                    type,
+                    category,
+                    date: getDateTime(date),
+                    note: lenderName ? `${note ? note + ' ' : ''}(Lender: ${lenderName})` : note,
+                    walletId: data.currentWalletId
                 };
-                onAddDebt(newDebt);
-            }
+                
+                if (type === TransactionType.INCOME && category === Category.LOAN && lenderName && onAddDebt) {
+                    const newDebt: Debt = {
+                        id: Date.now().toString(),
+                        person: lenderName,
+                        amount: numAmount,
+                        type: 'I_OWE',
+                        note: `Added via Income (Loan): ${note}`,
+                        isSettled: false,
+                        dueDate: undefined 
+                    };
+                    onAddDebt(newDebt);
+                }
 
-            onAdd(newTx);
+                onAdd(newTx);
+            }
         }
     };
 
@@ -94,6 +121,7 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
 
     const availableCategories = data.categories.filter((c: CategoryItem) => c.type === type);
     const otherWallets = data.wallets.filter((w: Wallet) => w.id !== data.currentWalletId);
+    const isEditing = !!editingTransaction;
 
     return (
         <div className="fixed inset-0 z-[5000] flex items-end justify-center">
@@ -109,8 +137,9 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                         {[TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER].map(t => (
                             <button 
                                 key={t} 
-                                onClick={() => setType(t)}
-                                className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all ${type === t ? (t === TransactionType.EXPENSE ? 'bg-rose-500 text-white' : t === TransactionType.INCOME ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white') : 'text-muted hover:text-main'}`}
+                                onClick={() => !isEditing && setType(t)}
+                                disabled={isEditing && t !== type}
+                                className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all ${type === t ? (t === TransactionType.EXPENSE ? 'bg-rose-500 text-white' : t === TransactionType.INCOME ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white') : 'text-muted hover:text-main'} ${isEditing && t !== type ? 'opacity-30' : ''}`}
                             >
                                 {t}
                             </button>
@@ -157,7 +186,7 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                     </div>
 
                     {/* Transfer specific or Category Scroll */}
-                    {type === TransactionType.TRANSFER ? (
+                    {type === TransactionType.TRANSFER && !isEditing ? (
                          <div className="bg-surface rounded-2xl p-4 border border-white/5">
                              <label className="text-[10px] font-bold text-muted uppercase block mb-2">Transfer To</label>
                              
@@ -199,7 +228,7 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                                 ))}
                             </div>
                             {/* Loan Source Input */}
-                            {type === TransactionType.INCOME && category === Category.LOAN && (
+                            {type === TransactionType.INCOME && category === Category.LOAN && !isEditing && (
                                 <div className="mt-2 animate-in fade-in slide-in-from-top-2">
                                     <input 
                                         type="text" 
@@ -219,8 +248,8 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                         disabled={!amount}
                         className="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2"
                     >
-                        <span>Save Transaction</span>
-                        <ArrowRight size={18} />
+                        <span>{isEditing ? 'Update Transaction' : 'Save Transaction'}</span>
+                        {isEditing ? <Save size={18} /> : <ArrowRight size={18} />}
                     </button>
                 </div>
             </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, User, Settings, TrendingUp, X, GripVertical, Moon, Sun, Download, Upload, Trash2, Check, Plus, ChevronDown, ChevronRight, AlertTriangle, Bell, BellOff } from 'lucide-react';
 import { AppData, TransactionType, CategoryItem } from '../types';
@@ -326,7 +325,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                         </div>
                     </div>
                 </div>
-                <div className="p-4 border-t border-white/5 bg-dark flex gap-3">
+                <div className="p-4 border-t border-white/5 bg-dark flex gap-3 pb-safe-bottom">
                     <button onClick={() => setSidebarView('menu')} className="flex-1 py-3 rounded-xl bg-surface text-muted font-bold text-xs hover:bg-white/10 transition-colors">Cancel</button>
                     <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-xs hover:bg-primary/90 transition-colors">Save Changes</button>
                 </div>
@@ -413,7 +412,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                          </div>
                      )}
                  </div>
-                 <div className="p-4 border-t border-white/5 bg-dark flex gap-3">
+                 <div className="p-4 border-t border-white/5 bg-dark flex gap-3 pb-safe-bottom">
                     <button onClick={() => setSidebarView('menu')} className="flex-1 py-3 rounded-xl bg-surface text-muted font-bold text-xs">Cancel</button>
                     <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-xs">Save Budgets</button>
                 </div>
@@ -527,7 +526,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, data, updateD
                         <button onClick={() => setShowResetConfirm(true)} className="w-full flex items-center justify-center gap-2 p-3 text-rose-500 bg-rose-500/10 rounded-xl text-xs font-bold uppercase border border-rose-500/20"><Trash2 size={14} /> Reset Data</button>
                     </div>
                 </div>
-                <div className="p-4 border-t border-white/5 bg-dark flex gap-3">
+                <div className="p-4 border-t border-white/5 bg-dark flex gap-3 pb-safe-bottom">
                     <button onClick={() => setSidebarView('menu')} className="flex-1 py-3 rounded-xl bg-surface text-muted font-bold text-xs">Cancel</button>
                     <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-xs">Save Changes</button>
                 </div>

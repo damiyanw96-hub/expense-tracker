@@ -9,6 +9,7 @@ interface HistoryProps {
     onRequestDelete: (id: string) => void;
     formatMoney: (val: number, sym: string) => string;
     CategoryIcon: React.ComponentType<{ category: string, color?: string }>;
+    onEditTransaction: (t: Transaction) => void;
 }
 
 type SortKey = 'date' | 'amount' | 'category';
@@ -218,7 +219,7 @@ const SankeyChart = ({ transactions, categories }: { transactions: Transaction[]
     );
 };
 
-export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, formatMoney, CategoryIcon }) => {
+export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, formatMoney, CategoryIcon, onEditTransaction }) => {
     const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'stats' | 'flow'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -413,7 +414,7 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
                  ) : (
                     <>
                     {visibleTransactions.map((t: Transaction) => (
-                        <div key={t.id} className="glass-card p-4 rounded-2xl flex items-center justify-between group active:scale-[0.99] transition-transform">
+                        <div key={t.id} onClick={() => onEditTransaction(t)} className="glass-card p-4 rounded-2xl flex items-center justify-between group active:scale-[0.99] transition-transform cursor-pointer">
                             <div className="flex items-center gap-4">
                                 <div className="h-10 w-10 rounded-full bg-surface flex items-center justify-center border border-white/5 text-muted">
                                     <CategoryIcon category={t.category} color={data.categories.find((c: CategoryItem) => c.name === t.category)?.color} />
@@ -431,7 +432,10 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
                                 <span className={`font-bold text-sm ${t.type === TransactionType.INCOME ? 'text-secondary' : 'text-main'}`}>
                                     {t.type === TransactionType.INCOME ? '+' : ''}{formatMoney(t.amount, data.settings.currencySymbol)}
                                 </span>
-                                <button onClick={() => onRequestDelete(t.id)} className="text-muted hover:text-danger p-2 rounded-full hover:bg-white/5 transition-colors active:scale-90">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); onRequestDelete(t.id); }} 
+                                    className="text-muted hover:text-danger p-2 rounded-full hover:bg-white/5 transition-colors active:scale-90"
+                                >
                                     <Trash2 size={16} />
                                 </button>
                             </div>

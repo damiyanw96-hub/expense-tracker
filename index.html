@@ -15,13 +15,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      // Immediate theme application to prevent FOUC (Flash of Unstyled Content)
+      // Immediate theme application to prevent FOUC
       try {
         const storedData = localStorage.getItem('zenwallet_v4_data');
         if (storedData) {
           const parsed = JSON.parse(storedData);
           const theme = parsed.settings?.theme || 'indigo';
-          const darkMode = parsed.settings?.darkMode !== false; // Default to true
+          const darkMode = parsed.settings?.darkMode !== false; 
           document.body.classList.add(`theme-${theme}`);
           if (!darkMode) document.body.classList.add('light-mode');
         } else {
@@ -44,9 +44,9 @@
             },
             fontFamily: {
               sans: [
-                '"Hind Siliguri"', 
                 '-apple-system', 
                 'BlinkMacSystemFont', 
+                '"Hind Siliguri"', 
                 '"Segoe UI"', 
                 'Roboto', 
                 'Helvetica', 
@@ -55,7 +55,8 @@
               ],
             },
             boxShadow: {
-              'glow': '0 0 20px rgb(var(--color-primary) / 0.3)',
+              'glow': '0 0 20px rgb(var(--color-primary) / 0.4)',
+              'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
             },
             padding: {
                 'safe': 'env(safe-area-inset-top)',
@@ -77,26 +78,27 @@
     <style>
       :root {
         --color-primary: 94 92 230;
-        /* Dark Mode Defaults */
+        /* iOS Dark Mode Defaults */
         --bg-core: 0 0 0;
         --bg-card: 28 28 30;
         --bg-surface: 44 44 46;
-        --text-main: 242 242 247;
+        --text-main: 255 255 255;
         --text-muted: 142 142 147;
       }
 
       body.light-mode {
-        /* Light Mode Overrides */
+        /* iOS Light Mode Overrides */
         --bg-core: 242 242 247;
         --bg-card: 255 255 255;
         --bg-surface: 229 229 234;
         --text-main: 0 0 0;
-        --text-muted: 99 99 102;
+        --text-muted: 100 100 105;
       }
       
       html, body {
         height: 100%;
-        overflow: hidden; /* Lock body scroll */
+        width: 100%;
+        overflow: hidden;
       }
       
       body {
@@ -108,6 +110,19 @@
         transition: background-color 0.3s ease, color 0.3s ease;
       }
       
+      /* Noise Texture for Grain Effect */
+      .bg-noise {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.04;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      }
+
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
         width: 0px;
@@ -116,10 +131,10 @@
 
       /* Theme Definitions */
       body.theme-indigo { --color-primary: 94 92 230; }
-      body.theme-emerald { --color-primary: 16 185 129; }
-      body.theme-rose { --color-primary: 244 63 94; }
-      body.theme-amber { --color-primary: 245 158 11; }
-      body.theme-blue { --color-primary: 59 130 246; }
+      body.theme-emerald { --color-primary: 48 209 88; } /* iOS Green */
+      body.theme-rose { --color-primary: 255 69 58; } /* iOS Red */
+      body.theme-amber { --color-primary: 255 159 10; } /* iOS Orange */
+      body.theme-blue { --color-primary: 10 132 255; } /* iOS Blue */
 
       .no-scrollbar::-webkit-scrollbar {
         display: none;
@@ -128,41 +143,46 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
+
+      /* iOS Glassmorphism */
       .glass {
-        background: rgba(var(--bg-card), 0.85);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-bottom: 0.5px solid rgba(128,128,128,0.1);
-      }
-      .glass-card {
-        background: rgba(var(--bg-surface), 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(128,128,128,0.1);
-      }
-      input, select, textarea {
-        font-size: 16px !important; /* Prevents iOS zoom on focus */
-      }
-      .pt-safe {
-        padding-top: env(safe-area-inset-top, 20px);
-      }
-      .pb-safe {
-        padding-bottom: env(safe-area-inset-bottom, 20px);
+        background: rgba(var(--bg-card), 0.7);
+        backdrop-filter: blur(25px) saturate(180%);
+        -webkit-backdrop-filter: blur(25px) saturate(180%);
+        border-top: 0.5px solid rgba(255,255,255,0.1);
       }
       
-      /* Highlight style for search */
-      mark.highlight {
-          background-color: rgba(var(--color-primary), 0.3);
-          color: rgb(var(--text-main));
-          border-radius: 4px;
-          padding: 0 2px;
+      body.light-mode .glass {
+         background: rgba(255, 255, 255, 0.7);
+         border-top: 0.5px solid rgba(0,0,0,0.1);
       }
+
+      .glass-card {
+        background: rgba(var(--bg-surface), 0.5);
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        border: 0.5px solid rgba(255,255,255,0.08);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
+      
+      body.light-mode .glass-card {
+         background: rgba(255, 255, 255, 0.6);
+         border: 0.5px solid rgba(0,0,0,0.05);
+      }
+
+      input, select, textarea {
+        font-size: 16px !important; 
+      }
+      
+      .pt-safe { padding-top: env(safe-area-inset-top, 20px); }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+      .mb-safe { margin-bottom: env(safe-area-inset-bottom, 20px); }
       
       /* View Transitions */
       .fade-enter { opacity: 0; transform: scale(0.98); }
-      .fade-enter-active { opacity: 1; transform: scale(1); transition: opacity 300ms, transform 300ms; }
+      .fade-enter-active { opacity: 1; transform: scale(1); transition: opacity 300ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
       .fade-exit { opacity: 1; transform: scale(1); }
-      .fade-exit-active { opacity: 0; transform: scale(0.98); transition: opacity 200ms, transform 200ms; }
+      .fade-exit-active { opacity: 0; transform: scale(0.98); transition: opacity 200ms ease-out, transform 200ms ease-out; }
     </style>
   <script type="importmap">
 {

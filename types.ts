@@ -80,6 +80,7 @@ export interface UserSettings {
   lastOpened: string;
   currencySymbol: string; 
   budgetLimits: Record<string, number>; // Category -> Limit
+  hasOnboarded: boolean; // New: For welcome popup
 }
 
 export interface UserProfile {
