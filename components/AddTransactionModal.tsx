@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { X, Calendar as CalendarIcon, Info, ArrowRight, Wallet as WalletIcon, Save } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Calendar as CalendarIcon, Info, ArrowRight, Wallet as WalletIcon, Save, AlertCircle } from 'lucide-react';
 import { TransactionType, Category, AppData, Wallet, Transaction, CategoryItem, Debt } from '../types';
 
 interface AddModalProps {
@@ -117,6 +117,51 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
         }
     };
 
+    // --- Budget Prediction Logic ---
+    const dailyStats = useMemo(() => {
+        if (type !== TransactionType.EXPENSE) return null;
+        
+        const dailyGoal = data.profile.dailyGoal || 0;
+        if (dailyGoal <= 0) return null;
+
+        const currentVal = calculateExpression(amount) || 0;
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Sum today's expenses excluding current editing transaction if any
+        const spentToday = data.transactions
+            .filter(t => 
+                t.type === TransactionType.EXPENSE && 
+                t.date.startsWith(today) && 
+                t.walletId === data.currentWalletId &&
+                (editingTransaction ? t.id !== editingTransaction.id : true)
+            )
+            .reduce((acc, t) => acc + t.amount, 0);
+
+        const projectedTotal = spentToday + currentVal;
+        const percentUsed = (projectedTotal / dailyGoal) * 100;
+        const remaining = dailyGoal - projectedTotal;
+
+        let message = "You're doing great! 🌟";
+        let color = "bg-primary";
+        let textColor = "text-primary";
+
+        if (percentUsed > 100) {
+            message = "Budget exceeded! 🚨 Slow down!";
+            color = "bg-rose-500";
+            textColor = "text-rose-500";
+        } else if (percentUsed > 80) {
+            message = "Careful, approaching limit! ⚠️";
+            color = "bg-amber-500";
+            textColor = "text-amber-500";
+        } else if (percentUsed > 50) {
+            message = "Pacing well. 👍";
+            color = "bg-emerald-500";
+            textColor = "text-emerald-500";
+        }
+
+        return { percentUsed, remaining, message, color, textColor, dailyGoal };
+    }, [amount, type, data.transactions, data.profile.dailyGoal, editingTransaction]);
+
     if (!isOpen) return null;
 
     const availableCategories = data.categories.filter((c: CategoryItem) => c.type === type);
@@ -128,58 +173,76 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose} />
             
-            {/* Modal Content - Designed for keyboard safety */}
-            <div className="relative z-50 bg-card w-full max-w-md rounded-t-3xl border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom-full duration-300 pb-safe">
+            {/* Modal Content */}
+            <div className="relative z-50 bg-card w-full max-w-md rounded-t-3xl border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom-full duration-300 pb-safe mb-safe">
                 
                 {/* 1. Header & Tabs */}
-                <div className="flex items-center justify-between p-4 pb-2">
-                     <div className="flex bg-surface rounded-full p-1 border border-white/5">
+                <div className="flex items-center justify-between p-5 pb-4">
+                     <div className="flex bg-surface rounded-full p-1 border border-white/5 shadow-inner">
                         {[TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER].map(t => (
                             <button 
                                 key={t} 
                                 onClick={() => !isEditing && setType(t)}
                                 disabled={isEditing && t !== type}
-                                className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase transition-all ${type === t ? (t === TransactionType.EXPENSE ? 'bg-rose-500 text-white' : t === TransactionType.INCOME ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white') : 'text-muted hover:text-main'} ${isEditing && t !== type ? 'opacity-30' : ''}`}
+                                className={`px-5 py-2.5 rounded-full text-[10px] font-bold uppercase transition-all ${type === t ? (t === TransactionType.EXPENSE ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : t === TransactionType.INCOME ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-blue-500 text-white shadow-lg shadow-blue-500/30') : 'text-muted hover:text-main'} ${isEditing && t !== type ? 'opacity-30' : ''}`}
                             >
                                 {t}
                             </button>
                         ))}
                      </div>
-                     <button onClick={onClose} className="p-2 bg-surface rounded-full text-muted active:scale-90"><X size={20}/></button>
+                     <button onClick={onClose} className="p-3 bg-surface rounded-full text-muted hover:text-main active:scale-90 transition-all border border-white/5"><X size={20}/></button>
                 </div>
 
-                {/* 2. Main Amount Input - The Hero */}
-                <div className="px-6 py-2">
-                    <div className="flex items-center justify-center relative">
-                        <span className="text-2xl font-bold text-muted absolute left-0 top-1/2 -translate-y-1/2">{data.settings.currencySymbol}</span>
+                {/* 2. Main Amount Input */}
+                <div className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-1">
+                        <span className="text-3xl font-bold text-muted/50 pb-2">{data.settings.currencySymbol}</span>
                         <input 
                             type="text" 
-                            inputMode="decimal" // Better keyboard on iOS/Android
+                            inputMode="decimal"
                             value={amount} 
                             onChange={e => setAmount(e.target.value)} 
                             onKeyDown={e => e.key === 'Enter' && handleSave()}
                             placeholder="0" 
-                            className="w-full bg-transparent text-center text-5xl font-bold text-main placeholder:text-muted/20 outline-none py-4"
+                            className="w-auto max-w-[240px] bg-transparent text-center text-6xl font-bold text-main placeholder:text-muted/10 outline-none"
                             autoFocus
                         />
                     </div>
+                    
+                    {/* Live Budget Impact Bar */}
+                    {dailyStats && (
+                        <div className="mt-4 mb-2 animate-in fade-in slide-in-from-top-2">
+                            <div className="flex justify-between items-end mb-1.5 px-1">
+                                <span className={`text-[10px] font-bold uppercase tracking-wide ${dailyStats.textColor}`}>{dailyStats.message}</span>
+                                <span className="text-[10px] text-muted font-medium">
+                                    Remaining: <span className={dailyStats.remaining < 0 ? 'text-rose-500' : 'text-main'}>{data.settings.currencySymbol}{dailyStats.remaining.toFixed(0)}</span>
+                                </span>
+                            </div>
+                            <div className="h-1.5 bg-black/20 rounded-full overflow-hidden w-full ring-1 ring-white/5">
+                                <div 
+                                    className={`h-full transition-all duration-500 ease-out ${dailyStats.color}`} 
+                                    style={{ width: `${Math.min(dailyStats.percentUsed, 100)}%` }} 
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* 3. Compact Details Row */}
-                <div className="px-4 space-y-4">
+                {/* 3. Details Row */}
+                <div className="px-6 space-y-5 pb-6">
                     
                     {/* Note & Date Combined */}
-                    <div className="flex gap-2">
-                        <div className="flex-1 bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 border border-white/5 focus-within:border-primary/50 transition-colors">
+                    <div className="flex gap-3">
+                        <div className="flex-1 bg-surface rounded-2xl px-5 py-3.5 flex items-center gap-3 border border-white/5 focus-within:border-primary/50 focus-within:bg-surface/80 transition-all">
                             <input 
                                 type="text" 
                                 placeholder="Add a note..." 
                                 value={note} 
                                 onChange={e => setNote(e.target.value)}
-                                className="bg-transparent w-full text-sm text-main placeholder:text-muted outline-none"
+                                className="bg-transparent w-full text-sm text-main placeholder:text-muted outline-none font-medium"
                             />
                         </div>
-                         <div className="bg-surface rounded-2xl px-3 py-3 flex items-center gap-2 border border-white/5 min-w-[110px]">
+                         <div className="bg-surface rounded-2xl px-4 py-3.5 flex items-center gap-2 border border-white/5 min-w-[120px]">
                              <CalendarIcon size={16} className="text-muted" />
                              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent text-xs font-bold text-main w-full outline-none" />
                         </div>
@@ -187,11 +250,11 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
 
                     {/* Transfer specific or Category Scroll */}
                     {type === TransactionType.TRANSFER && !isEditing ? (
-                         <div className="bg-surface rounded-2xl p-4 border border-white/5">
-                             <label className="text-[10px] font-bold text-muted uppercase block mb-2">Transfer To</label>
+                         <div className="bg-surface rounded-2xl p-5 border border-white/5">
+                             <label className="text-[10px] font-bold text-muted uppercase block mb-3 tracking-wide">Transfer To</label>
                              
                              {otherWallets.length === 0 ? (
-                                <div className="text-center py-4 px-4 rounded-xl bg-black/20 text-muted border border-dashed border-white/10">
+                                <div className="text-center py-6 px-4 rounded-xl bg-black/20 text-muted border border-dashed border-white/10">
                                     <div className="flex justify-center mb-2 opacity-50"><WalletIcon size={24} /></div>
                                     <p className="text-xs font-semibold">No other wallets found.</p>
                                     <p className="text-[10px] mt-1 opacity-70">Create another wallet in the side menu to transfer funds.</p>
@@ -203,7 +266,7 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                                             key={w.id} 
                                             type="button"
                                             onClick={() => setToWalletId(w.id)}
-                                            className={`flex-shrink-0 px-4 py-2 rounded-xl border text-xs font-bold transition-all ${toWalletId === w.id ? 'bg-primary/20 border-primary text-primary' : 'bg-black/20 border-white/5 text-muted'}`}
+                                            className={`flex-shrink-0 px-5 py-3 rounded-xl border text-xs font-bold transition-all ${toWalletId === w.id ? 'bg-primary/20 border-primary text-primary shadow-lg shadow-primary/10' : 'bg-black/20 border-white/5 text-muted hover:bg-black/30'}`}
                                          >
                                              {w.name}
                                          </button>
@@ -218,24 +281,24 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                                     <button 
                                         key={cat.id} 
                                         onClick={() => setCategory(cat.name)}
-                                        className={`flex-shrink-0 snap-start flex flex-col items-center gap-1 min-w-[60px] transition-opacity ${category === cat.name ? 'opacity-100' : 'opacity-50 hover:opacity-80'}`}
+                                        className={`flex-shrink-0 snap-start flex flex-col items-center gap-2 min-w-[64px] transition-all group ${category === cat.name ? 'opacity-100 scale-100' : 'opacity-60 hover:opacity-100 scale-95'}`}
                                     >
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${category === cat.name ? 'bg-primary/10 border-primary shadow-[0_0_15px_rgba(var(--color-primary),0.3)]' : 'bg-surface border-white/5'}`}>
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-all shadow-sm ${category === cat.name ? 'bg-primary/10 border-primary shadow-[0_0_15px_rgba(var(--color-primary),0.3)]' : 'bg-surface border-white/5 group-hover:border-white/20'}`}>
                                             <CategoryIcon category={cat.name} color={category === cat.name ? cat.color : undefined} />
                                         </div>
-                                        <span className={`text-[9px] font-medium truncate max-w-[64px] ${category === cat.name ? 'text-primary' : 'text-muted'}`}>{cat.name}</span>
+                                        <span className={`text-[10px] font-bold truncate max-w-[64px] ${category === cat.name ? 'text-primary' : 'text-muted'}`}>{cat.name}</span>
                                     </button>
                                 ))}
                             </div>
                             {/* Loan Source Input */}
                             {type === TransactionType.INCOME && category === Category.LOAN && !isEditing && (
-                                <div className="mt-2 animate-in fade-in slide-in-from-top-2">
+                                <div className="mt-4 animate-in fade-in slide-in-from-top-2">
                                     <input 
                                         type="text" 
                                         placeholder="Lender Name" 
                                         value={lenderName} 
                                         onChange={e => setLenderName(e.target.value)}
-                                        className="w-full bg-amber-500/10 text-amber-200 placeholder:text-amber-500/50 text-sm px-4 py-2 rounded-xl outline-none border border-amber-500/20"
+                                        className="w-full bg-amber-500/10 text-amber-200 placeholder:text-amber-500/50 text-sm px-5 py-3.5 rounded-2xl outline-none border border-amber-500/20 focus:border-amber-500/50 transition-colors"
                                     />
                                 </div>
                             )}
@@ -246,7 +309,7 @@ export const AddTransactionModal: React.FC<AddModalProps> = ({ isOpen, onClose, 
                     <button 
                         onClick={handleSave} 
                         disabled={!amount}
-                        className="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2"
+                        className="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
                     >
                         <span>{isEditing ? 'Update Transaction' : 'Save Transaction'}</span>
                         {isEditing ? <Save size={18} /> : <ArrowRight size={18} />}

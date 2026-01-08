@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { AppData, Transaction, TransactionType, CategoryItem, Debt } from '../types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, PieChart, Pie } from 'recharts';
-import { TrendingUp, TrendingDown, Target, Award, BrainCircuit, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, Award, BrainCircuit, Activity, PieChart as PieIcon, BarChart3, LineChart, Timer } from 'lucide-react';
 
 interface AnalyticsProps {
     data: AppData;
@@ -14,17 +14,121 @@ export const AnalyticsView: React.FC<AnalyticsProps> = ({ data, formatMoney }) =
 
     const transactions = data.transactions.filter(t => t.walletId === data.currentWalletId);
     
+    // --- Empty State Check ---
+    if (transactions.length === 0) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center animate-in fade-in slide-in-from-bottom-4 p-6 text-center">
+                <div className="relative mb-6">
+                    <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"></div>
+                    <div className="relative bg-surface p-6 rounded-[2rem] border border-white/5 shadow-2xl flex items-center justify-center gap-4">
+                        <PieIcon size={32} className="text-purple-400" />
+                        <BarChart3 size={32} className="text-primary" />
+                        <LineChart size={32} className="text-emerald-400" />
+                    </div>
+                </div>
+                <h2 className="text-2xl font-bold text-main mb-2">Unlock Financial Insights</h2>
+                <p className="text-muted text-sm max-w-xs leading-relaxed mb-8">
+                    Start adding transactions to unlock powerful analytics about your spending habits.
+                </p>
+
+                <div className="grid grid-cols-1 w-full gap-3 max-w-sm">
+                    <div className="bg-surface/50 p-4 rounded-2xl border border-white/5 flex items-center gap-4 text-left">
+                        <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500"><TrendingDown size={20}/></div>
+                        <div>
+                            <p className="text-sm font-bold text-main">Spending Trends</p>
+                            <p className="text-[10px] text-muted">Visualize where your money goes daily.</p>
+                        </div>
+                    </div>
+                    <div className="bg-surface/50 p-4 rounded-2xl border border-white/5 flex items-center gap-4 text-left">
+                        <div className="p-2 bg-purple-500/10 rounded-xl text-purple-500"><PieIcon size={20}/></div>
+                        <div>
+                            <p className="text-sm font-bold text-main">Top Categories</p>
+                            <p className="text-[10px] text-muted">See which areas consume your budget.</p>
+                        </div>
+                    </div>
+                    <div className="bg-surface/50 p-4 rounded-2xl border border-white/5 flex items-center gap-4 text-left">
+                        <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-500"><BrainCircuit size={20}/></div>
+                        <div>
+                            <p className="text-sm font-bold text-main">AI Insights</p>
+                            <p className="text-[10px] text-muted">Get personalized habit reports.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // --- Data Processing ---
     
     // Totals
     const totalIncome = transactions.filter(t => t.type === TransactionType.INCOME).reduce((s: number, t: Transaction) => s + t.amount, 0);
     const totalExpense = transactions.filter(t => t.type === TransactionType.EXPENSE).reduce((s: number, t: Transaction) => s + t.amount, 0);
+    const balance = totalIncome - totalExpense;
     const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
     // Debt
     const totalIOwe = data.debts.filter(d => !d.isSettled && d.type === 'I_OWE').reduce((s: number, d: Debt) => s + d.amount, 0);
     const totalOwesMe = data.debts.filter(d => !d.isSettled && d.type === 'OWES_ME').reduce((s: number, d: Debt) => s + d.amount, 0);
     const netDebt = totalOwesMe - totalIOwe;
+
+    // Runway Calculation (Statistical)
+    const calculateRunway = () => {
+        if (balance <= 0) return { days: 0, text: "No funds available" };
+        
+        // Get weighted average daily spend
+        // Recent 7 days weight: 1.0, 30 days weight: 0.5
+        const now = new Date();
+        const oneDay = 24 * 60 * 60 * 1000;
+        
+        const expenses = transactions.filter(t => t.type === TransactionType.EXPENSE);
+        if (expenses.length === 0) return { days: 999, text: "∞ (No expenses)" };
+
+        let sum7 = 0;
+        let sum30 = 0;
+        let count7 = 0; // days active
+        let count30 = 0;
+
+        // Simple bucket approach
+        const activeDays = new Set<string>();
+
+        expenses.forEach(t => {
+            const tDate = new Date(t.date);
+            const diffDays = Math.floor((now.getTime() - tDate.getTime()) / oneDay);
+            const dateStr = t.date.split('T')[0];
+            
+            if (diffDays <= 30) {
+                activeDays.add(dateStr);
+                sum30 += t.amount;
+                if (diffDays <= 7) {
+                    sum7 += t.amount;
+                }
+            }
+        });
+
+        // Determine denominator (actual days passed or buckets)
+        // For accurate avg, we ideally want "Spending per Day" even if 0 spend on some days.
+        // Let's assume active window is 30 days or time since first transaction if < 30
+        const firstTx = expenses[expenses.length - 1];
+        const daysSinceStart = Math.max(1, Math.floor((now.getTime() - new Date(firstTx.date).getTime()) / oneDay));
+        const window30 = Math.min(30, daysSinceStart);
+        const window7 = Math.min(7, daysSinceStart);
+
+        const avg7 = window7 > 0 ? sum7 / window7 : 0;
+        const avg30 = window30 > 0 ? sum30 / window30 : 0;
+
+        // Weighted Average: 60% weight to last 7 days, 40% to last 30
+        const weightedAvgDaily = (avg7 * 0.6) + (avg30 * 0.4);
+        
+        if (weightedAvgDaily <= 0) return { days: 999, text: "∞ (Low spending)" };
+        
+        const daysLeft = Math.floor(balance / weightedAvgDaily);
+        return { 
+            days: daysLeft, 
+            text: daysLeft > 365 ? "> 1 Year" : daysLeft > 30 ? `${Math.floor(daysLeft/30)} Months` : `${daysLeft} Days` 
+        };
+    };
+    
+    const runway = calculateRunway();
 
     // Spending by Category (Top 5)
     const expenseByCategory = transactions
@@ -51,7 +155,6 @@ export const AnalyticsView: React.FC<AnalyticsProps> = ({ data, formatMoney }) =
         return { name: dayName, value: amt };
     });
 
-    // Average Spending
     const avgDailySpend = totalExpense / (transactions.length > 0 ? 30 : 1); // Mock 30 days for now
 
     // --- Report Text Generation ---
@@ -108,6 +211,16 @@ export const AnalyticsView: React.FC<AnalyticsProps> = ({ data, formatMoney }) =
 
             {tab === 'overview' && (
                 <div className="space-y-4">
+                     {/* Runway Card */}
+                     <div className="bg-gradient-to-br from-indigo-600 to-blue-600 rounded-3xl p-6 border border-white/10 relative overflow-hidden shadow-lg">
+                         <div className="absolute top-0 right-0 p-4 opacity-20"><Timer size={48} /></div>
+                         <p className="text-indigo-100 text-xs font-bold uppercase tracking-wider mb-2">Financial Runway</p>
+                         <h3 className="text-3xl font-bold text-white mb-1">{runway.text}</h3>
+                         <p className="text-indigo-200 text-xs opacity-80 max-w-[80%] leading-relaxed">
+                            Based on your weighted daily spending habits and current balance, this is how long your funds will last without new income.
+                         </p>
+                     </div>
+
                      {/* Net Worth / Savings Card */}
                      <div className="bg-surface rounded-3xl p-6 border border-white/5 relative overflow-hidden">
                          <div className="flex justify-between items-start mb-4">

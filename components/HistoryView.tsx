@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Search, X, FileText, Calendar as CalendarIcon, PieChart, Shuffle, Trash2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { Download, Search, X, FileText, Calendar as CalendarIcon, PieChart, Shuffle, Trash2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Loader2, ListFilter, Clock } from 'lucide-react';
 import { Transaction, TransactionType, AppData, CategoryItem } from '../types';
 import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -229,7 +229,6 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
     // Pagination State
-    // Increased batch size to 50 for better UX on high refresh rate displays
     const BATCH_SIZE = 50;
     const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
     const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -332,8 +331,8 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
                 </div>
            </div>
 
-           {/* Sticky Header Container with adjusted margins for consistent padding */}
-           <div className="sticky top-0 z-20 bg-dark/95 backdrop-blur-xl -mx-5 px-5 pb-2 pt-1 border-b border-white/5 mb-4 shadow-lg shadow-black/20">
+           {/* Sticky Header Container */}
+           <div className="sticky top-0 z-20 bg-dark/95 backdrop-blur-xl -mx-5 px-5 pb-2 pt-1 border-b border-white/5 mb-4 shadow-sm">
                {/* Filter Bar */}
                <div className="space-y-3 mb-3">
                    <div className="flex items-center gap-2 bg-surface/50 rounded-xl px-3 py-2 border border-white/5 group focus-within:border-primary/50 transition-colors">
@@ -406,17 +405,24 @@ export const HistoryView: React.FC<HistoryProps> = ({ data, onRequestDelete, for
            </div>
 
            {viewMode === 'list' && (
-               <div className="space-y-3 min-h-[300px]">
+               <div className="space-y-0 min-h-[300px] border-t border-white/5">
                  {filteredTransactions.length === 0 ? (
-                     <div className="flex flex-col items-center justify-center h-48 text-muted border border-white/5 rounded-3xl bg-surface/30 border-dashed">
-                         <p className="text-sm">No transactions found</p>
+                     <div className="flex flex-col items-center justify-center h-64 text-center px-6 animate-in fade-in slide-in-from-bottom-2 border-t border-transparent">
+                         <div className="w-16 h-16 bg-surface/50 rounded-full flex items-center justify-center mb-4 border border-white/5">
+                             <Clock size={32} className="text-muted/50" />
+                         </div>
+                         <h3 className="text-main font-bold mb-1">Your Financial Story</h3>
+                         <p className="text-muted text-xs leading-relaxed max-w-xs">
+                             Transactions will appear here chronologically. 
+                             <br/>You can search by #tags, filter by date, or use the icons above to see calendar and flow views.
+                         </p>
                      </div>
                  ) : (
                     <>
                     {visibleTransactions.map((t: Transaction) => (
-                        <div key={t.id} onClick={() => onEditTransaction(t)} className="glass-card p-4 rounded-2xl flex items-center justify-between group active:scale-[0.99] transition-transform cursor-pointer">
+                        <div key={t.id} onClick={() => onEditTransaction(t)} className="py-4 px-1 flex items-center justify-between group active:bg-white/5 transition-colors cursor-pointer border-b border-white/5 last:border-0">
                             <div className="flex items-center gap-4">
-                                <div className="h-10 w-10 rounded-full bg-surface flex items-center justify-center border border-white/5 text-muted">
+                                <div className="h-10 w-10 rounded-full bg-[#1c1c1e] flex items-center justify-center border border-white/5 text-muted">
                                     <CategoryIcon category={t.category} color={data.categories.find((c: CategoryItem) => c.name === t.category)?.color} />
                                 </div>
                                 <div>

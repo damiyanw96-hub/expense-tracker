@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Home, Plus, Clock, PieChart, HandCoins } from 'lucide-react';
 import { ViewState } from '../types';
@@ -35,7 +36,7 @@ export const NavBar: React.FC<NavBarProps> = ({ currentView, onChangeView, onAdd
                 e.stopPropagation();
                 onAddClick(e);
             }}
-            className="flex items-center justify-center w-14 h-14 bg-primary text-white rounded-full shadow-glow active:scale-95 transition-transform border-4 border-[#1c1c1e] z-50"
+            className="flex items-center justify-center w-14 h-14 bg-primary text-white rounded-full active:scale-95 transition-transform border-4 border-[#1c1c1e] z-50 shadow-xl"
           >
             <Plus size={28} />
           </button>

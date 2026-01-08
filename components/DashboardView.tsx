@@ -176,19 +176,15 @@ export const DashboardView: React.FC<DashboardProps> = ({ data, setView, updateD
                 </div>
             </div>
 
-            {/* Credit Card Style Balance Hero */}
-            <div onClick={handleDoubleTap} className="relative rounded-3xl p-5 overflow-hidden select-none cursor-pointer group z-10 transition-transform active:scale-[0.99] shadow-2xl bg-gradient-to-br from-[#1c1c1e] to-[#2c2c2e] border border-white/10 flex flex-col gap-6">
-               
-               {/* Noise & Glow */}
-               <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
-               <div className={`absolute -top-20 -right-20 w-64 h-64 bg-primary/20 blur-3xl rounded-full group-active:scale-110 transition-transform duration-500 ${refreshing ? 'scale-125 opacity-20' : ''}`} />
+            {/* Minimalist Balance Card */}
+            <div onClick={handleDoubleTap} className="relative rounded-3xl p-6 overflow-hidden select-none cursor-pointer group z-10 transition-transform active:scale-[0.99] bg-[#1c1c1e] border border-white/5 flex flex-col gap-8 shadow-sm">
                
                {/* Header: Label + Privacy */}
                <div className="flex justify-between items-center relative z-10">
-                   <p className="text-xs text-white/50 font-bold uppercase tracking-wider">
-                       {currentWallet?.type === 'GOAL' ? 'Goal Balance' : 'Total Balance'}
+                   <p className="text-xs text-muted font-bold uppercase tracking-wider">
+                       {currentWallet?.type === 'GOAL' ? 'Goal Balance' : 'Current Balance'}
                    </p>
-                   <button onClick={(e) => { e.stopPropagation(); updateData({ settings: { ...data.settings, privacyMode: !data.settings.privacyMode } }) }} className="text-white/30 hover:text-white transition-colors p-1 active:scale-90">
+                   <button onClick={(e) => { e.stopPropagation(); updateData({ settings: { ...data.settings, privacyMode: !data.settings.privacyMode } }) }} className="text-muted hover:text-white transition-colors p-1 active:scale-90">
                        {data.settings.privacyMode ? <Eye size={16}/> : <EyeOff size={16}/>}
                    </button>
                </div>
@@ -200,175 +196,124 @@ export const DashboardView: React.FC<DashboardProps> = ({ data, setView, updateD
                    </h1>
                </div>
 
-               {/* Buttons inside card */}
+               {/* Buttons inside card - Minimalist */}
                {currentWallet?.type !== 'GOAL' ? (
-                    <div className="grid grid-cols-2 gap-3 relative z-10 mt-2">
+                    <div className="grid grid-cols-2 gap-3 relative z-10">
                         <button 
                             onClick={(e) => { e.stopPropagation(); onAddTransactionRequest(TransactionType.INCOME); }} 
-                            className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl p-3 flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 group/btn"
+                            className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl p-3 flex items-center justify-between transition-colors active:scale-95 group/btn"
                         >
-                            <div className="p-1.5 bg-emerald-500/20 rounded-full text-emerald-400 group-hover/btn:scale-110 transition-transform">
+                            <div className="flex flex-col items-start gap-1">
+                                <span className="text-[10px] font-bold text-muted uppercase tracking-wide">Income</span>
+                                <span className="text-sm font-bold text-white">
+                                    {!data.settings.privacyMode ? formatMoney(totalIncome, data.settings.currencySymbol) : '••••'}
+                                </span>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                                 <TrendingUp size={16} />
                             </div>
-                            <span className="text-[10px] font-bold text-emerald-100/70 uppercase tracking-wide">Income</span>
-                            {!data.settings.privacyMode && <span className="text-xs font-bold text-emerald-400">{formatMoney(totalIncome, data.settings.currencySymbol)}</span>}
                         </button>
 
                         <button 
                             onClick={(e) => { e.stopPropagation(); onAddTransactionRequest(TransactionType.EXPENSE); }} 
-                            className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl p-3 flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 group/btn"
+                            className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl p-3 flex items-center justify-between transition-colors active:scale-95 group/btn"
                         >
-                            <div className="p-1.5 bg-rose-500/20 rounded-full text-rose-400 group-hover/btn:scale-110 transition-transform">
+                            <div className="flex flex-col items-start gap-1">
+                                <span className="text-[10px] font-bold text-muted uppercase tracking-wide">Expense</span>
+                                <span className="text-sm font-bold text-white">
+                                    {!data.settings.privacyMode ? formatMoney(totalExpense, data.settings.currencySymbol) : '••••'}
+                                </span>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
                                 <TrendingUp size={16} className="rotate-180" />
                             </div>
-                            <span className="text-[10px] font-bold text-rose-100/70 uppercase tracking-wide">Expense</span>
-                            {!data.settings.privacyMode && <span className="text-xs font-bold text-rose-400">{formatMoney(totalExpense, data.settings.currencySymbol)}</span>}
                         </button>
                     </div>
                ) : (
                     <div className="mt-auto">
-                        {/* Goal Progress Bar */}
-                        <div className="flex justify-between text-xs text-white/50 mb-1.5 font-medium">
+                        <div className="flex justify-between text-xs text-muted mb-2 font-medium">
                             <span>{Math.round(goalProgress)}% Achieved</span>
                             <span>Target: {formatMoney(currentWallet.targetAmount || 0, data.settings.currencySymbol)}</span>
                         </div>
-                        <div className="h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                            <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" style={{ width: `${goalProgress}%` }} />
+                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary" style={{ width: `${goalProgress}%` }} />
                         </div>
                     </div>
                )}
             </div>
 
-            {/* Quick Actions */}
+            {/* Quick Actions - Minimalist */}
             {quickActions.length > 0 && (
                 <div className="px-1">
-                    <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-2 pl-2">Quick Add</h3>
+                    <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3 pl-1">Quick Add</h3>
                     <div className="grid grid-cols-4 gap-3">
                         {quickActions.map((category, idx) => (
                             <button 
                                 key={idx}
                                 onClick={() => onAddTransactionRequest(TransactionType.EXPENSE, { category })}
-                                className="glass-card flex flex-col items-center justify-center gap-2 rounded-2xl p-3 active:scale-95 transition-all hover:bg-surface/80"
+                                className="flex flex-col items-center justify-center gap-2 active:scale-95 transition-all opacity-80 hover:opacity-100"
                             >
-                                <div className="p-2.5 bg-black/10 rounded-full text-muted shadow-sm">
+                                <div className="w-14 h-14 bg-[#1c1c1e] rounded-2xl border border-white/5 flex items-center justify-center shadow-sm">
                                     <CategoryIcon category={category} color={data.categories.find(c => c.name === category)?.color} />
                                 </div>
-                                <span className="text-[10px] font-medium text-main truncate max-w-full">{category}</span>
+                                <span className="text-[10px] font-medium text-muted truncate max-w-full">{category}</span>
                             </button>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* Daily Budget */}
-            <div className={`glass-card rounded-3xl p-4 flex items-center gap-4 transition-all duration-500 ${isOverBudget ? 'bg-rose-500/10 border-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.1)]' : ''}`}>
-                <div className={`p-3.5 rounded-full shadow-sm ${isOverBudget ? 'bg-rose-500 text-white animate-pulse' : 'bg-primary/10 text-primary'}`}>
-                    <Zap size={22} />
-                </div>
-                <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-bold text-main">Daily Budget</span>
-                        
-                        {isEditingGoal ? (
-                            <div className="flex items-center gap-1 animate-in fade-in slide-in-from-right-4">
-                                <input 
-                                    autoFocus
-                                    type="number" 
-                                    className="w-20 bg-black/20 text-main text-xs px-2 py-1 rounded outline-none border border-primary"
-                                    value={tempGoal}
-                                    onChange={e => setTempGoal(e.target.value)}
-                                    placeholder="Amount"
-                                />
-                                <button onClick={saveGoal} className="p-1 bg-emerald-500/20 text-emerald-500 rounded hover:bg-emerald-500/30"><Check size={14}/></button>
-                                <button onClick={() => setIsEditingGoal(false)} className="p-1 bg-white/5 text-muted rounded hover:bg-white/10"><X size={14}/></button>
-                            </div>
-                        ) : (
-                            dailyLimit > 0 ? (
-                                <button onClick={() => { setTempGoal(dailyLimit.toString()); setIsEditingGoal(true); }} className={`text-xs font-bold ${isOverBudget ? 'text-rose-500' : 'text-muted'} hover:text-primary transition-colors`}>
-                                    {formatMoney(dailySpent, data.settings.currencySymbol)} / {formatMoney(dailyLimit, data.settings.currencySymbol)}
-                                </button>
-                            ) : (
-                                <button 
-                                    onClick={() => { setTempGoal(''); setIsEditingGoal(true); }} 
-                                    className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg hover:bg-primary/20 transition-colors"
-                                >
-                                    Set Goal
-                                </button>
-                            )
-                        )}
-                    </div>
-                    
-                    {!isEditingGoal && (
-                        <>
-                        <div className="h-2.5 bg-black/10 rounded-full overflow-hidden border border-white/5">
-                            {dailyLimit > 0 ? (
-                                <div className={`h-full transition-all duration-700 ease-out ${isOverBudget ? 'bg-rose-500' : 'bg-primary'}`} style={{ width: `${dailyProgress}%` }} />
-                            ) : (
-                                <div className="h-full bg-muted/10 w-full" />
-                            )}
+            {/* Daily Budget - Minimalist */}
+            <div className={`bg-[#1c1c1e] border border-white/5 rounded-3xl p-5 flex flex-col gap-3 transition-all duration-500 ${isOverBudget ? 'border-rose-500/30' : ''}`}>
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-xl ${isOverBudget ? 'bg-rose-500/10 text-rose-500' : 'bg-primary/10 text-primary'}`}>
+                            <Zap size={18} />
                         </div>
-                        {isOverBudget && <p className="text-[10px] text-rose-500 font-bold mt-1.5 animate-in slide-in-from-top-1">You have exceeded your daily limit!</p>}
-                        </>
+                        <span className="text-sm font-bold text-main">Daily Budget</span>
+                    </div>
+
+                    {isEditingGoal ? (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
+                            <input 
+                                autoFocus
+                                type="number" 
+                                className="w-20 bg-black/20 text-main text-xs px-2 py-1.5 rounded-lg outline-none border border-primary/50"
+                                value={tempGoal}
+                                onChange={e => setTempGoal(e.target.value)}
+                                placeholder="Amount"
+                            />
+                            <button onClick={saveGoal} className="p-1.5 bg-emerald-500/20 text-emerald-500 rounded-lg"><Check size={14}/></button>
+                            <button onClick={() => setIsEditingGoal(false)} className="p-1.5 bg-white/5 text-muted rounded-lg"><X size={14}/></button>
+                        </div>
+                    ) : (
+                        <button 
+                            onClick={() => { setTempGoal(dailyLimit > 0 ? dailyLimit.toString() : ''); setIsEditingGoal(true); }} 
+                            className="text-xs font-bold text-muted hover:text-white transition-colors"
+                        >
+                            {dailyLimit > 0 ? `${formatMoney(dailySpent, data.settings.currencySymbol)} / ${formatMoney(dailyLimit, data.settings.currencySymbol)}` : 'Set Limit'}
+                        </button>
                     )}
                 </div>
+                
+                {!isEditingGoal && dailyLimit > 0 && (
+                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden w-full">
+                        <div className={`h-full transition-all duration-700 ease-out rounded-full ${isOverBudget ? 'bg-rose-500' : 'bg-primary'}`} style={{ width: `${dailyProgress}%` }} />
+                    </div>
+                )}
             </div>
 
-            {/* Budget Alerts */}
-            {budgetAlerts.length > 0 && (
-                <div className="space-y-3">
-                    <h3 className="text-sm font-bold text-muted uppercase tracking-wider px-2">At Risk Budgets</h3>
-                    {budgetAlerts.map((b: any) => (
-                        <div key={b.cat} className="bg-surface/50 backdrop-blur-md border border-rose-500/30 p-4 rounded-2xl flex items-center justify-between shadow-lg shadow-rose-500/5">
-                             <div>
-                                 <p className="text-sm font-bold text-main">{b.cat}</p>
-                                 <p className="text-xs text-rose-400 font-semibold">{Math.round((b.spent/b.limit)*100)}% Used</p>
-                             </div>
-                             <div className="text-right">
-                                 <p className="text-sm font-bold text-main">{formatMoney(b.spent, data.settings.currencySymbol)}</p>
-                                 <p className="text-[10px] text-muted">of {formatMoney(b.limit, data.settings.currencySymbol)}</p>
-                             </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Goal Wallets Summary */}
-            {goalWallets.length > 0 && currentWallet?.type !== 'GOAL' && (
-                 <div className="space-y-3">
-                    <div className="flex justify-between items-end px-2">
-                        <h3 className="text-sm font-bold text-muted uppercase tracking-wider">Your Goals</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        {goalWallets.map((w: Wallet) => {
-                            const wTx = data.transactions.filter((t: Transaction) => t.walletId === w.id);
-                            const bal = wTx.reduce((acc: number, t: Transaction) => acc + (t.type === 'INCOME' ? t.amount : -t.amount), 0);
-                            const prog = Math.min((bal / (w.targetAmount || 1)) * 100, 100);
-                            return (
-                                <button key={w.id} onClick={() => updateData({ currentWalletId: w.id })} className="bg-surface/50 backdrop-blur p-4 rounded-2xl border border-white/5 text-left hover:border-primary/50 transition-all active:scale-[0.98]">
-                                    <Target size={20} className="text-primary mb-2"/>
-                                    <p className="font-bold text-main text-sm truncate">{w.name}</p>
-                                    <div className="w-full h-1.5 bg-black/20 rounded-full mt-2 overflow-hidden">
-                                        <div className="h-full bg-primary" style={{ width: `${prog}%` }} />
-                                    </div>
-                                    <p className="text-[10px] text-muted mt-1 text-right">{Math.round(prog)}%</p>
-                                </button>
-                            )
-                        })}
-                    </div>
-                 </div>
-            )}
-
-            {/* Recent List Placeholder */}
+            {/* Recent List - Flat Design */}
             <div className="pb-8">
-              <div className="flex items-center justify-between mb-3 px-2">
-                  <h2 className="text-lg font-bold text-main">Recent Activity</h2>
-                  <button onClick={() => setView('history')} className="text-xs text-primary font-bold active:opacity-70 p-2 bg-primary/10 rounded-lg">See All</button>
+              <div className="flex items-center justify-between mb-4 px-1">
+                  <h2 className="text-lg font-bold text-main">Recent</h2>
+                  <button onClick={() => setView('history')} className="text-xs text-primary font-bold active:opacity-70">See All</button>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-0 border-t border-white/5">
                   {walletTransactions.slice(0, 5).map((t: Transaction) => (
-                      <div key={t.id} onClick={() => onEditTransaction(t)} className="glass-card p-4 rounded-2xl flex items-center justify-between active:scale-[0.98] transition-transform cursor-pointer">
+                      <div key={t.id} onClick={() => onEditTransaction(t)} className="py-4 px-1 flex items-center justify-between active:bg-white/5 transition-colors cursor-pointer border-b border-white/5 last:border-0">
                           <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 rounded-full bg-surface/80 flex items-center justify-center border border-white/5 text-muted shadow-sm">
+                              <div className="w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center border border-white/5">
                                   <CategoryIcon category={t.category} color={data.categories.find((c: CategoryItem) => c.name === t.category)?.color} />
                               </div>
                               <div>

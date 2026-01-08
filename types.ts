@@ -1,4 +1,5 @@
 
+
 export enum TransactionType {
   INCOME = 'INCOME',
   EXPENSE = 'EXPENSE',
@@ -99,4 +100,4 @@ export interface AppData {
   profile: UserProfile;
 }
 
-export type ViewState = 'dashboard' | 'history' | 'debts' | 'analytics';
+export type ViewState = 'dashboard' | 'history' | 'debts' | 'analytics' | 'account' | 'budgets' | 'categories' | 'settings';
